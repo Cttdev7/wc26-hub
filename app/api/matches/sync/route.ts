@@ -2,12 +2,11 @@ import { createClient } from '@supabase/supabase-js'
 import { fetchMatches } from '@/lib/api-football'
 import { NextResponse } from 'next/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 async function syncMatches() {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
   try {
     const fixtures = await fetchMatches()
     const matches = fixtures.map((f: any) => ({

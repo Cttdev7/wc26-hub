@@ -1,11 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
 function calcPoints(pHome: number, pAway: number, rHome: number, rAway: number): number {
   if (pHome === rHome && pAway === rAway) return 3
   const pW = pHome > pAway ? 'H' : pHome < pAway ? 'A' : 'D'
@@ -17,6 +12,11 @@ export async function GET(request: Request) {
   if (request.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
 
   const { data: finishedMatches } = await supabase
     .from('matches')
