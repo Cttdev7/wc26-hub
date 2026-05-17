@@ -1,6 +1,30 @@
 import type { Metadata } from 'next'
+import localFont from 'next/font/local'
 import './globals.css'
-import Navbar from '@/components/ui/navbar'
+
+const archivo = localFont({
+  src: [
+    { path: '../public/fonts/archivo-900-latin.woff2', weight: '400 900', style: 'normal' },
+  ],
+  variable: '--font-archivo',
+  display: 'swap',
+})
+
+const archivoBlack = localFont({
+  src: [
+    { path: '../public/fonts/archivo-black-400-latin.woff2', weight: '400', style: 'normal' },
+  ],
+  variable: '--font-archivo-black',
+  display: 'swap',
+})
+
+const jetbrainsMono = localFont({
+  src: [
+    { path: '../public/fonts/jetbrains-mono-600-latin.woff2', weight: '600', style: 'normal' },
+  ],
+  variable: '--font-jetbrains-mono',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'WC26 HUB — Stats, analyses & paris communautaires',
@@ -9,13 +33,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="fr">
-      <body style={{ background: '#0A0A0A', minHeight: '100vh' }}>
-        <Navbar />
-        <main style={{ maxWidth: 1152, margin: '0 auto', padding: '40px 16px' }}>
-          {children}
-        </main>
-      </body>
+    <html
+      lang="fr"
+      className={`${archivo.variable} ${archivoBlack.variable} ${jetbrainsMono.variable}`}
+    >
+      <body>{children}</body>
     </html>
   )
 }
