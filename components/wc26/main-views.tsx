@@ -3,8 +3,8 @@
 // Main views for WC26 HUB — Hero, Upcoming, Analyses, Teams, Match, Predictions
 // Ported 1:1 from design/js/08-main-views.jsx
 
-import { useState, useEffect } from 'react'
-import type { Profile } from '@/lib/db-types'
+import { useState, useEffect, useMemo } from 'react'
+import type { Profile, Prediction } from '@/lib/db-types'
 import {
   TEAMS, MATCHES, FEATURED, FEATURED_PULSE, ANALYSES, TEAM_STATS, LINEUPS,
   CALENDAR, STAGE_INFO, TZ_LABEL, toParis,
@@ -420,64 +420,223 @@ const avatarFor = (id: string) => {
   return LB_AVATARS[h % LB_AVATARS.length]
 }
 
+const DOW = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM']
+const MONTHS = ['JAN','FÉV','MAR','AVR','MAI','JUIN','JUIL','AOÛT','SEPT','OCT','NOV','DÉC']
+
+// "today" en local browser → string YYYY-MM-DD comparable aux dates du CALENDAR
+function todayStr(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
+// Construit la grille de jours qui couvre tous les matchs (premier lundi
+// avant le 1er match → dernier dimanche après le dernier match).
+function buildGridDays(matchDates: string[]): string[] {
+  if (matchDates.length === 0) return []
+  const first = matchDates[0]
+  const last  = matchDates[matchDates.length - 1]
+  const start = new Date(first + 'T00:00:00')
+  const end   = new Date(last  + 'T00:00:00')
+  // Reculer jusqu'au lundi
+  const dow = (start.getDay() + 6) % 7  // 0 = Lundi
+  start.setDate(start.getDate() - dow)
+  // Avancer jusqu'au dimanche
+  const dowEnd = (end.getDay() + 6) % 7
+  end.setDate(end.getDate() + (6 - dowEnd))
+  const days: string[] = []
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    days.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)
+  }
+  return days
+}
+
 export function PredictionsView({
-  onOpenMatch, onOpenLeaderboard, profile,
-}: { onOpenMatch: (id: string) => void; onOpenLeaderboard: () => void; profile?: Profile | null }) {
+  onOpenMatch, onOpenLeaderboard, profile, user,
+}: {
+  onOpenMatch: (id: string) => void;
+  onOpenLeaderboard: () => void;
+  profile?: Profile | null;
+  user?: { id: string } | null;
+}) {
   type LbRow = { id: string; pseudo: string; total_points: number; total_predictions: number; rang: number }
   const [top, setTop] = useState<LbRow[]>([])
+  const [predictions, setPredictions] = useState<Prediction[]>([])
+
   useEffect(() => {
     fetch('/api/leaderboard?limit=10').then(r => r.ok ? r.json() : { leaderboard: [] })
       .then((d: { leaderboard: LbRow[] }) => setTop(d.leaderboard ?? []))
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    if (!user) { setPredictions([]); return }
+    fetch('/api/predictions').then(r => r.ok ? r.json() : { predictions: [] })
+      .then((d: { predictions: Prediction[] }) => setPredictions(d.predictions ?? []))
+      .catch(() => {})
+  }, [user])
+
+  const today = todayStr()
+
+  const matchesByDate = useMemo(() => {
+    const m = new Map<string, typeof CALENDAR>()
+    for (const x of CALENDAR) {
+      if (!m.has(x.date)) m.set(x.date, [])
+      m.get(x.date)!.push(x)
+    }
+    return m
+  }, [])
+
+  const predictionByMatch = useMemo(() => {
+    const m = new Map<string, Prediction>()
+    for (const p of predictions) m.set(p.match_id, p)
+    return m
+  }, [predictions])
+
+  const sortedDates = useMemo(() => Array.from(matchesByDate.keys()).sort(), [matchesByDate])
+  const gridDays = useMemo(() => buildGridDays(sortedDates), [sortedDates])
+
+  // Jour sélectionné : aujourd'hui s'il a un match, sinon prochain jour avec match
+  const initialSelected = matchesByDate.has(today)
+    ? today
+    : sortedDates.find(d => d >= today) ?? sortedDates[sortedDates.length - 1]
+  const [selectedDate, setSelectedDate] = useState<string>(initialSelected)
+
+  const todaysMatches = matchesByDate.get(today) ?? []
+  const dayLockState = (d: string): 'past' | 'today' | 'future' =>
+    d < today ? 'past' : d === today ? 'today' : 'future'
+
+  // Statut d'un pronostic individuel (pour les pastilles dans les cellules)
+  const predictionStatus = (matchId: string): 'won' | 'lost' | 'pending' | 'none' => {
+    const p = predictionByMatch.get(matchId)
+    if (!p) return 'none'
+    if (!p.scored) return 'pending'
+    return p.points_earned > 0 ? 'won' : 'lost'
+  }
+
+  const openTodayCTA = () => {
+    if (todaysMatches.length > 0) onOpenMatch(todaysMatches[0].id)
+    else if (sortedDates.length > 0) setSelectedDate(sortedDates.find(d => d >= today) ?? sortedDates[0])
+  }
+
+  // Mois affichés (de juin à juillet 2026 typiquement) → calculé à partir de gridDays
+  const monthsInRange = useMemo(() => {
+    const seen = new Set<string>()
+    const out: { key: string; label: string }[] = []
+    for (const d of gridDays) {
+      const key = d.slice(0, 7)
+      if (!seen.has(key)) {
+        seen.add(key)
+        const dt = new Date(d + 'T00:00:00')
+        out.push({ key, label: `${MONTHS[dt.getMonth()]} ${dt.getFullYear()}` })
+      }
+    }
+    return out
+  }, [gridDays])
+
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'40px 32px 64px' }}>
-      <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:24, gap:24 }}>
-        <div>
-          <h1 className="display" style={{ fontSize:64, margin:'0 0 8px' }}>Pronostics<br/>communautaires</h1>
-          <p style={{ fontSize:15, color:'var(--muted)', maxWidth:520, lineHeight:1.4 }}>
-            1 000 pts offerts à l&apos;inscription. <strong style={{ color:'var(--ink)' }}>Score exact</strong> = 5 pts ·
-            <strong style={{ color:'var(--ink)' }}> Bon vainqueur</strong> = 3 pts · Faux = 0 pt.
-          </p>
-        </div>
-        <div style={{ display:'flex', gap:14 }}>
-          <BigStat label="Mes points" value={profile ? profile.total_points.toLocaleString('fr-FR') : '—'} color={PALETTE.lime}/>
-        </div>
+      {/* HEADER */}
+      <div style={{ textAlign:'center', marginBottom:32 }}>
+        <span className="chip" style={{ background: PALETTE.lime, color:'var(--ink)' }}>🎯 JEU DU JOUR</span>
+        <h1 className="display" style={{ fontSize:88, margin:'14px 0 12px', lineHeight:0.88 }}>Pronostics WC26</h1>
+        <p style={{ fontSize:16, color:'var(--muted)', maxWidth:620, margin:'0 auto', lineHeight:1.45 }}>
+          Un nouveau match à pronostiquer chaque jour. <strong style={{ color:'var(--ink)' }}>Score exact = 5 pts</strong> ·{' '}
+          <strong style={{ color:'var(--ink)' }}>Bon résultat = 3 pts</strong> · Faux = 0 pt.
+        </p>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:24 }}>
+      {/* CTA principal centré */}
+      <div style={{ display:'flex', justifyContent:'center', gap:14, marginBottom:42, flexWrap:'wrap' }}>
+        <button
+          onClick={openTodayCTA}
+          disabled={todaysMatches.length === 0}
+          className="pill-btn solid"
+          style={{
+            padding:'18px 32px', fontSize:15, letterSpacing:'0.04em', textTransform:'uppercase',
+            opacity: todaysMatches.length===0 ? 0.55 : 1, cursor: todaysMatches.length===0 ? 'not-allowed' : 'pointer',
+          }}>
+          {todaysMatches.length > 0
+            ? `Jouer aujourd'hui · ${todaysMatches.length} match${todaysMatches.length>1?'s':''}`
+            : 'Pas de match aujourd’hui'}
+        </button>
+        <button
+          onClick={onOpenLeaderboard}
+          className="pill-btn"
+          style={{ padding:'18px 32px', fontSize:15, letterSpacing:'0.04em', textTransform:'uppercase' }}>
+          🏆 Classement
+        </button>
+      </div>
+
+      {/* Stats user (s'il est connecté) */}
+      {profile && (
+        <div style={{ display:'flex', justifyContent:'center', gap:14, marginBottom:32, flexWrap:'wrap' }}>
+          <BigStat label="Mes points"   value={profile.total_points.toLocaleString('fr-FR')} color={PALETTE.lime}/>
+          <BigStat label="Pronostiqués" value={String(predictions.length)}                    color={PALETTE.blue}/>
+          <BigStat label="Score exact"  value={String(predictions.filter(p => p.points_earned === 5).length)} color={PALETTE.magenta}/>
+        </div>
+      )}
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:24, alignItems:'start' }}>
+        {/* CALENDRIER */}
         <div>
-          <h2 className="display" style={{ fontSize:24, margin:'0 0 14px' }}>Matchs à pronostiquer</h2>
-          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-            {MATCHES.map((m, i) => {
-              const h = teamByCode(m.home), a = teamByCode(m.away)
-              const accent = [PALETTE.red, PALETTE.purple, PALETTE.blue, PALETTE.magenta, PALETTE.lime, PALETTE.orange][i%6]
+          <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:14, gap:14, flexWrap:'wrap' }}>
+            <h2 className="display" style={{ fontSize:24, margin:0 }}>Le calendrier du jeu</h2>
+            <div style={{ display:'flex', gap:8, fontSize:11, fontWeight:700, color:'var(--muted)' }}>
+              {monthsInRange.map(m => <span key={m.key}>{m.label}</span>)}
+            </div>
+          </div>
+
+          {/* Légende */}
+          <div style={{ display:'flex', gap:14, fontSize:10, fontWeight:700, color:'var(--muted)', marginBottom:14, flexWrap:'wrap' }}>
+            <LegendDot color={PALETTE.lime} label="GAGNÉ"/>
+            <LegendDot color={PALETTE.red}  label="PERDU"/>
+            <LegendDot color={PALETTE.blue} label="EN ATTENTE"/>
+            <LegendDot color="var(--line)"  label="NON JOUÉ"/>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+              <span>🔒</span><span>Verrouillé</span>
+            </span>
+          </div>
+
+          {/* Header jours de semaine */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)', gap:6, marginBottom:6 }}>
+            {DOW.map(d => (
+              <div key={d} style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.1em', textAlign:'center' }}>{d}</div>
+            ))}
+          </div>
+
+          {/* Grille des jours */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)', gap:6 }}>
+            {gridDays.map(d => {
+              const matchesOfDay = matchesByDate.get(d) ?? []
+              const lock = dayLockState(d)
+              const isSelected = d === selectedDate
+              const hasMatch = matchesOfDay.length > 0
               return (
-                <div key={m.id} className="card" style={{ padding:18, display:'grid', gridTemplateColumns:'1fr auto', gap:18, alignItems:'center' }}>
-                  <div style={{ display:'flex', alignItems:'center', gap:16, minWidth:0 }}>
-                    <div style={{ width:8, height:48, background:accent, borderRadius:4, flexShrink:0 }}/>
-                    <div style={{ minWidth:0 }}>
-                      <div style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.08em' }}>{m.stage}</div>
-                      <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:4 }}>
-                        <Flag team={h} w={28} h={18}/>
-                        <span className="display" style={{ fontSize:18 }}>{h.code}</span>
-                        <span style={{ fontSize:12, fontWeight:700, color:'var(--muted)' }}>vs</span>
-                        <span className="display" style={{ fontSize:18 }}>{a.code}</span>
-                        <Flag team={a} w={28} h={18}/>
-                      </div>
-                      <div style={{ fontSize:10, fontWeight:600, color:'var(--muted)', marginTop:4 }}>{m.date} · {m.time}</div>
-                    </div>
-                  </div>
-                  <button onClick={() => onOpenMatch(m.id)} className="pill-btn solid" style={{ padding:'10px 18px', fontSize:12, whiteSpace:'nowrap' }}>
-                    Pronostiquer →
-                  </button>
-                </div>
+                <DayCell
+                  key={d}
+                  date={d}
+                  matches={matchesOfDay}
+                  hasMatch={hasMatch}
+                  lock={lock}
+                  selected={isSelected}
+                  predictionStatus={predictionStatus}
+                  onClick={() => hasMatch && setSelectedDate(d)}
+                />
               )
             })}
           </div>
+
+          {/* Section : matchs du jour sélectionné */}
+          <SelectedDaySection
+            date={selectedDate}
+            matches={matchesByDate.get(selectedDate) ?? []}
+            lock={dayLockState(selectedDate)}
+            predictionByMatch={predictionByMatch}
+            onOpenMatch={onOpenMatch}
+          />
         </div>
 
+        {/* CLASSEMENT */}
         <div className="card" style={{ padding:0, overflow:'hidden', height:'fit-content', marginTop:38 }}>
           <div style={{ padding:'18px 20px', background: PALETTE.ink, color:'#FFFFFF' }}>
             <div className="display" style={{ fontSize:22 }}>🏆 Classement</div>
@@ -510,6 +669,176 @@ export function PredictionsView({
         </div>
       </div>
     </section>
+  )
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+      <span style={{ width:8, height:8, borderRadius:'50%', background: color, border:'1px solid var(--ink)' }}/>
+      <span>{label}</span>
+    </span>
+  )
+}
+
+function DayCell({
+  date, matches, hasMatch, lock, selected, predictionStatus, onClick,
+}: {
+  date: string;
+  matches: typeof CALENDAR;
+  hasMatch: boolean;
+  lock: 'past' | 'today' | 'future';
+  selected: boolean;
+  predictionStatus: (id: string) => 'won' | 'lost' | 'pending' | 'none';
+  onClick: () => void;
+}) {
+  const d = new Date(date + 'T00:00:00')
+  const dayNum = d.getDate()
+
+  // Background/border selon état
+  const bg =
+    !hasMatch ? 'var(--paper-2)'
+    : lock === 'today' ? PALETTE.lime
+    : lock === 'past' ? 'var(--paper)'
+    : 'var(--paper)'
+  const border =
+    selected ? '2px solid var(--ink)'
+    : !hasMatch ? '1px solid var(--line)'
+    : lock === 'today' ? '2px solid var(--ink)'
+    : '1.5px solid var(--ink)'
+  const opacity = !hasMatch ? 0.45 : lock === 'future' ? 0.6 : 1
+  const cursor = hasMatch ? 'pointer' : 'default'
+
+  const dotColor = (status: ReturnType<typeof predictionStatus>) =>
+    status === 'won' ? PALETTE.lime
+    : status === 'lost' ? PALETTE.red
+    : status === 'pending' ? PALETTE.blue
+    : 'var(--line)'
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={!hasMatch}
+      style={{
+        position:'relative', aspectRatio:'1', padding:8, borderRadius:10,
+        background: bg, border, opacity, cursor,
+        display:'flex', flexDirection:'column', alignItems:'flex-start', justifyContent:'space-between',
+        fontFamily:'inherit', textAlign:'left', transition:'transform .12s, background .12s',
+      }}
+      onMouseEnter={e => { if (hasMatch) e.currentTarget.style.transform='translateY(-2px)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform='translateY(0)' }}>
+
+      {/* Jour + cadenas */}
+      <div style={{ width:'100%', display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
+        <span className="display mono" style={{ fontSize:18, lineHeight:1, color: lock === 'today' ? 'var(--ink)' : 'var(--ink)' }}>{dayNum}</span>
+        {hasMatch && lock === 'future' && (
+          <span style={{ fontSize:11, lineHeight:1, opacity:0.65 }}>🔒</span>
+        )}
+        {hasMatch && lock === 'today' && (
+          <span style={{ fontSize:9, fontWeight:800, background:'var(--ink)', padding:'2px 5px', borderRadius:3, lineHeight:1 }}>
+            <span style={{ color: PALETTE.lime }}>JOUR</span>
+          </span>
+        )}
+      </div>
+
+      {/* Codes équipes des matchs du jour */}
+      {hasMatch && (
+        <div style={{ width:'100%', display:'flex', flexDirection:'column', gap:2 }}>
+          {matches.slice(0, 2).map(m => (
+            <div key={m.id} style={{ fontSize:9, fontWeight:800, letterSpacing:'0.04em', lineHeight:1.1 }}>
+              {m.home}·{m.away}
+            </div>
+          ))}
+          {matches.length > 2 && (
+            <div style={{ fontSize:8, fontWeight:700, color:'var(--muted)' }}>+{matches.length - 2}</div>
+          )}
+          <div style={{ display:'flex', gap:3, marginTop:2 }}>
+            {matches.map(m => (
+              <span key={m.id} style={{
+                width:7, height:7, borderRadius:'50%',
+                background: dotColor(predictionStatus(m.id)),
+                border:'1px solid var(--ink)',
+              }}/>
+            ))}
+          </div>
+        </div>
+      )}
+    </button>
+  )
+}
+
+function SelectedDaySection({
+  date, matches, lock, predictionByMatch, onOpenMatch,
+}: {
+  date: string;
+  matches: typeof CALENDAR;
+  lock: 'past' | 'today' | 'future';
+  predictionByMatch: Map<string, Prediction>;
+  onOpenMatch: (id: string) => void;
+}) {
+  if (matches.length === 0) return null
+  const d = new Date(date + 'T00:00:00')
+  const heading = `${['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'][d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`
+
+  const lockLabel = lock === 'future' ? '🔒 Pronostic verrouillé jusqu’au jour J' : lock === 'past' ? 'Résultat finalisé' : 'À pronostiquer aujourd’hui'
+  const lockBg    = lock === 'future' ? 'var(--paper-2)' : lock === 'past' ? 'var(--paper-2)' : PALETTE.lime
+
+  return (
+    <div style={{ marginTop:24 }}>
+      <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:12, gap:14, flexWrap:'wrap' }}>
+        <h3 className="display" style={{ fontSize:22, margin:0 }}>{heading}</h3>
+        <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.06em', padding:'4px 10px', background: lockBg, border:'1.5px solid var(--ink)', borderRadius:99 }}>
+          {lockLabel.toUpperCase()}
+        </span>
+      </div>
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        {matches.map((m, i) => {
+          const h = teamByCode(m.home), a = teamByCode(m.away)
+          const accent = [PALETTE.red, PALETTE.purple, PALETTE.blue, PALETTE.magenta, PALETTE.lime, PALETTE.orange][i%6]
+          const pred = predictionByMatch.get(m.id)
+          const pickLabel = pred ? (pred.pick === 'home' ? h.code : pred.pick === 'away' ? a.code : 'NUL') : null
+          const locked = lock === 'future'
+          return (
+            <div key={m.id} className="card" style={{ padding:16, display:'grid', gridTemplateColumns:'1fr auto', gap:18, alignItems:'center' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:14, minWidth:0 }}>
+                <div style={{ width:6, height:42, background: accent, borderRadius:3, flexShrink:0 }}/>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.08em' }}>{m.stage} · {m.time}</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:4 }}>
+                    <Flag team={h} w={26} h={17}/>
+                    <span className="display" style={{ fontSize:18 }}>{h.code}</span>
+                    <span style={{ fontSize:12, fontWeight:700, color:'var(--muted)' }}>vs</span>
+                    <span className="display" style={{ fontSize:18 }}>{a.code}</span>
+                    <Flag team={a} w={26} h={17}/>
+                  </div>
+                  {pred && (
+                    <div style={{ fontSize:11, fontWeight:700, color:'var(--ink)', marginTop:5 }}>
+                      Ton pari : <span style={{ background: PALETTE.lime, padding:'1px 6px', borderRadius:3 }}>{pickLabel}</span>
+                      {pred.score_home != null && pred.score_away != null && (
+                        <> · <span className="mono">{pred.score_home}-{pred.score_away}</span></>
+                      )}
+                      {pred.scored && (
+                        <> · <span style={{ color: pred.points_earned > 0 ? PALETTE.lime : PALETTE.red, fontWeight:800 }}>+{pred.points_earned} pts</span></>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => onOpenMatch(m.id)}
+                disabled={locked}
+                className="pill-btn solid"
+                style={{
+                  padding:'10px 18px', fontSize:12, whiteSpace:'nowrap',
+                  opacity: locked ? 0.45 : 1, cursor: locked ? 'not-allowed' : 'pointer',
+                }}>
+                {locked ? '🔒 Verrouillé' : pred ? 'Modifier →' : 'Pronostiquer →'}
+              </button>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
