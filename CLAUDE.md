@@ -7,6 +7,10 @@ Application web pour la Coupe du Monde 2026 : stats, analyses et pronostics comm
 > **Audit post-port (commit `8c16fc2`)** : supprimé `proxy.ts` (middleware Supabase mort), retiré Tailwind (jamais réimporté après le port), supprimé `lib/types.ts` + `lib/supabase/client.ts` (orphelins), lazy-loadé 8 vues lourdes via `next/dynamic`.
 >
 > **Auth Supabase (commit `b94e4b7`)** : nouveau bouton « Connexion » dans la topbar + vue `auth` (Google OAuth + email/mot de passe) → `components/wc26/auth-view.tsx`. `lib/supabase/client.ts` recréé pour le browser. Session suivie via `onAuthStateChange` dans `<App/>`. Bouton « Profil » + pill points + bouton déconnexion (↪) apparaissent une fois connecté.
+>
+> **Jeu de pronostics 5/3/0 (commit `4144ac3`)** : système de mise supprimé, remplacé par un pronostic simple (1/N/2 + score exact optionnel). Score exact = 5 pts, bon vainqueur = 3 pts, faux = 0. Vues `prediction` (form par match) + `leaderboard` (classement complet) ajoutées. Backend : `/api/predictions`, `/api/leaderboard`, fonction SQL `place_prediction` dans `supabase/003_predictions.sql`.
+>
+> **Scoring automatique** : cron Vercel `/api/cron/score` (daily 23:00 UTC, défini dans `vercel.json`) interroge API-Football, mappe les matchs terminés vers nos `match_id` mock via (home_code, away_code, date), appelle `score_prediction(match_id, real_home, real_away)` qui crédite les profils. Idempotent. Test manuel : `curl http://localhost:3000/api/cron/score -H "Authorization: Bearer $CRON_SECRET"`.
 
 ## Stack
 
