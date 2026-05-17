@@ -3,14 +3,18 @@
 Application web pour la Coupe du Monde 2026 : stats, analyses et pronostics communautaires.
 
 > **État au 17 mai 2026** : le visuel a été entièrement refait à partir du design `WC2026.zip` (light éditorial). L'UI tourne en mode SPA avec données factices. Le branchement Supabase / API-Football n'est PAS encore reconnecté à la nouvelle UI — toute la plomberie data existe dans `lib/`, `supabase/` et `app/api/` mais n'est plus appelée par les vues. Voir « Statut data » plus bas.
+>
+> **Audit post-port (commit `8c16fc2`)** : supprimé `proxy.ts` (middleware Supabase mort), retiré Tailwind (jamais réimporté après le port), supprimé `lib/types.ts` + `lib/supabase/client.ts` (orphelins), lazy-loadé 8 vues lourdes via `next/dynamic`.
 
 ## Stack
 
 - **Next.js 16** (App Router) + TypeScript + Turbopack
-- **Tailwind CSS v4** (config via CSS, présent mais non utilisé par le nouveau design — qui repose sur des inline styles + CSS vars dans `globals.css`)
 - **next/font/local** : Archivo, Archivo Black, JetBrains Mono (woff2 dans `public/fonts/`)
-- **Supabase** + **API-Football** : présents dans le code mais non câblés à l'UI actuelle
-- **Vercel** : hébergement + crons
+- **next/dynamic** : les 8 vues hors-home sont lazy-loadées
+- **Supabase** + **API-Football** : présents dans `lib/` et `app/api/` mais non câblés à l'UI actuelle
+- **Vercel** : hébergement + crons (cf. `vercel.json`)
+
+(Tailwind / PostCSS ont été retirés à l'audit du 17 mai 2026 — le design s'appuie uniquement sur les CSS vars de `globals.css` + des inline styles.)
 
 ## Commandes
 
