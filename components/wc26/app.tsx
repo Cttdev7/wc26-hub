@@ -5,13 +5,20 @@
 // (TweaksPanel dev tool dropped — its CSS-var defaults are baked into globals.css)
 
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import { LogoMark, Marquee, PALETTE } from './ui-primitives'
-import { HeroFeatured, UpcomingStrip, AnalysesGrid, TeamsView, MatchView, PredictionsView } from './main-views'
+import { HeroFeatured, UpcomingStrip, AnalysesGrid } from './main-views'
 import { FavoritesSection, NewsSection } from './home-sections'
-import { TeamDetailView, ProfileView } from './team-detail'
-import { CalendarView } from './calendar-view'
-import { GroupsView } from './groups-view'
-import { LiveView } from './live-view'
+
+// Heavy views — loaded on demand only when the user navigates to them
+const TeamsView       = dynamic(() => import('./main-views').then(m => ({ default: m.TeamsView })))
+const MatchView       = dynamic(() => import('./main-views').then(m => ({ default: m.MatchView })))
+const PredictionsView = dynamic(() => import('./main-views').then(m => ({ default: m.PredictionsView })))
+const TeamDetailView  = dynamic(() => import('./team-detail').then(m => ({ default: m.TeamDetailView })))
+const ProfileView     = dynamic(() => import('./team-detail').then(m => ({ default: m.ProfileView })))
+const CalendarView    = dynamic(() => import('./calendar-view').then(m => ({ default: m.CalendarView })))
+const GroupsView      = dynamic(() => import('./groups-view').then(m => ({ default: m.GroupsView })))
+const LiveView        = dynamic(() => import('./live-view').then(m => ({ default: m.LiveView })))
 
 type View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile'
 
