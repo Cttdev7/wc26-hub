@@ -25,8 +25,9 @@ const GroupsView         = dynamic(() => import('./groups-view').then(m => ({ de
 const LiveView           = dynamic(() => import('./live-view').then(m => ({ default: m.LiveView })))
 const PredictionFormView = dynamic(() => import('./prediction-view').then(m => ({ default: m.PredictionFormView })))
 const LeaderboardView    = dynamic(() => import('./leaderboard-view').then(m => ({ default: m.LeaderboardView })))
+const BettingView        = dynamic(() => import('./betting-view').then(m => ({ default: m.BettingView })))
 
-type View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile' | 'auth' | 'prediction' | 'leaderboard'
+type View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile' | 'auth' | 'prediction' | 'leaderboard' | 'betting'
 
 export default function App() {
   const [view, setView] = useState<View>('home')
@@ -107,6 +108,7 @@ export default function App() {
       {view==='predictions' && <PredictionsView onOpenMatch={openPrediction} onOpenLeaderboard={() => { setView('leaderboard'); window.scrollTo(0,0) }} profile={profile}/>}
       {view==='prediction' && <PredictionFormView matchId={activeMatch} onBack={() => setView('predictions')} user={user}/>}
       {view==='leaderboard' && <LeaderboardView onBack={() => setView('predictions')}/>}
+      {view==='betting' && <BettingView/>}
       {view==='profile' && <ProfileView profile={profile} user={user}/>}
       {view==='auth' && <AuthView onBack={() => setView('home')}/>}
 
@@ -126,6 +128,7 @@ function TopBar({ view, setView, user, profile, onSignOut }: {
     ['groups', 'Groupes'],
     ['teams', 'Équipes'],
     ['predictions', 'Pronostics'],
+    ['betting', 'Paris'],
   ]
   return (
     <header style={{

@@ -11,6 +11,8 @@ Application web pour la Coupe du Monde 2026 : stats, analyses et pronostics comm
 > **Jeu de pronostics 5/3/0 (commit `4144ac3`)** : système de mise supprimé, remplacé par un pronostic simple (1/N/2 + score exact optionnel). Score exact = 5 pts, bon vainqueur = 3 pts, faux = 0. Vues `prediction` (form par match) + `leaderboard` (classement complet) ajoutées. Backend : `/api/predictions`, `/api/leaderboard`, fonction SQL `place_prediction` dans `supabase/003_predictions.sql`.
 >
 > **Scoring automatique** : cron Vercel `/api/cron/score` (daily 23:00 UTC, défini dans `vercel.json`) interroge API-Football, mappe les matchs terminés vers nos `match_id` mock via (home_code, away_code, date), appelle `score_prediction(match_id, real_home, real_away)` qui crédite les profils. Idempotent. Test manuel : `curl http://localhost:3000/api/cron/score -H "Authorization: Bearer $CRON_SECRET"`.
+>
+> **Catégorie Paris sportifs** : nouvelle vue `betting` (`components/wc26/betting-view.tsx`) — cards partenaires (Betclic, Winamax, Unibet, PMU, Parions Sport FDJ, Zebet) + cotes 1X2 par match. Les URLs d'affiliation sont **masquées via redirection serveur** : tout clic passe par `/affiliate/<slug>` (route `app/affiliate/[partner]/route.ts`) qui 302 vers l'URL de `AFFILIATE_<SLUG>` en var d'env. Cotes via `/api/odds` (API-Football, cache 30 min, whitelist de bookmakers). **Disclaimers ANJ obligatoires** présents en haut et en bas de la vue.
 
 ## Stack
 
@@ -38,6 +40,17 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 API_FOOTBALL_KEY=
 CRON_SECRET=wc26hubsecret2026
+
+# Affiliés paris sportifs — URLs cachées via /affiliate/<slug>
+# Cf. app/affiliate/[partner]/route.ts pour la liste des slugs.
+AFFILIATE_BETCLIC=https://www.betclic.fr/?aff=TON_ID
+AFFILIATE_WINAMAX=https://www.winamax.fr/?aff=TON_ID
+AFFILIATE_UNIBET=https://www.unibet.fr/?aff=TON_ID
+AFFILIATE_PMU=https://www.pmu.fr/?aff=TON_ID
+AFFILIATE_FDJ=https://www.parionssport.fdj.fr/?aff=TON_ID
+AFFILIATE_ZEBET=https://www.zebet.fr/?aff=TON_ID
+AFFILIATE_NETBET=https://www.netbet.fr/?aff=TON_ID
+AFFILIATE_BWIN=https://sports.bwin.fr/?aff=TON_ID
 ```
 
 ## Architecture actuelle (post-port du design)
