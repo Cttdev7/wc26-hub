@@ -5,6 +5,8 @@ Application web pour la Coupe du Monde 2026 : stats, analyses et pronostics comm
 > **État au 17 mai 2026** : le visuel a été entièrement refait à partir du design `WC2026.zip` (light éditorial). L'UI tourne en mode SPA avec données factices. Le branchement Supabase / API-Football n'est PAS encore reconnecté à la nouvelle UI — toute la plomberie data existe dans `lib/`, `supabase/` et `app/api/` mais n'est plus appelée par les vues. Voir « Statut data » plus bas.
 >
 > **Audit post-port (commit `8c16fc2`)** : supprimé `proxy.ts` (middleware Supabase mort), retiré Tailwind (jamais réimporté après le port), supprimé `lib/types.ts` + `lib/supabase/client.ts` (orphelins), lazy-loadé 8 vues lourdes via `next/dynamic`.
+>
+> **Auth Supabase (commit `b94e4b7`)** : nouveau bouton « Connexion » dans la topbar + vue `auth` (Google OAuth + email/mot de passe) → `components/wc26/auth-view.tsx`. `lib/supabase/client.ts` recréé pour le browser. Session suivie via `onAuthStateChange` dans `<App/>`. Bouton « Profil » + pill points + bouton déconnexion (↪) apparaissent une fois connecté.
 
 ## Stack
 
