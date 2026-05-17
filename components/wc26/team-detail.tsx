@@ -3,6 +3,8 @@
 // Team Detail View + Profile View
 // Ported 1:1 from design/js/10-team-detail.jsx
 
+import type { User } from '@supabase/supabase-js'
+import type { Profile } from '@/lib/db-types'
 import { TEAMS, SQUADS, TEAM_STATS, MATCHES, PROFILE } from './data'
 import { Flag, FormDots, ImagePlaceholder, PALETTE } from './ui-primitives'
 
@@ -260,11 +262,20 @@ function FormBar({ value }: { value: number }) {
   )
 }
 
-export function ProfileView() {
+export function ProfileView({ profile, user }: { profile?: Profile | null; user?: User | null } = {}) {
   const p = PROFILE
   const team = teamByCode(p.country)
   const winRate = Math.round((p.won / (p.bets - p.pending)) * 100)
   const lost = p.bets - p.won - p.pending
+
+  // Real Supabase fields override the mock where available.
+  const displayName = profile?.pseudo ?? user?.email?.split('@')[0] ?? p.name
+  const displayHandle = profile ? `@${profile.pseudo}` : user?.email ? `@${user.email}` : p.handle
+  const displayPoints = profile?.total_points ?? p.points
+  const displayJoined = profile?.created_at
+    ? new Date(profile.created_at).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+    : p.joined
+  const initials = displayName.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'32px 32px 64px' }}>
@@ -280,15 +291,15 @@ export function ProfileView() {
                 width:'100%', height:'100%', borderRadius:'50%',
                 background:'var(--paper)', display:'flex', alignItems:'center', justifyContent:'center',
                 fontFamily:'var(--font-archivo-black), Archivo Black', fontSize:42, color:'var(--ink)',
-              }}>{p.name.split(' ')[0][0]}{p.name.split(' ')[1]?.[0] || ''}</div>
+              }}>{initials}</div>
             </div>
             <div style={{ position:'absolute', bottom:-4, right:-4, background:'var(--paper)', borderRadius:'50%', padding:3, border:'2px solid var(--ink)' }}>
               <Flag team={team} w={28} h={20} square/>
             </div>
           </div>
           <div>
-            <div className="display" style={{ fontSize:56, lineHeight:0.9 }}>{p.name}</div>
-            <div style={{ fontSize:14, color:'rgba(255,255,255,0.6)', marginTop:6, fontWeight:600 }}>{p.handle} · membre depuis {p.joined}</div>
+            <div className="display" style={{ fontSize:56, lineHeight:0.9 }}>{displayName}</div>
+            <div style={{ fontSize:14, color:'rgba(255,255,255,0.6)', marginTop:6, fontWeight:600 }}>{displayHandle} · membre depuis {displayJoined}</div>
             <div style={{ display:'flex', gap:8, marginTop:14 }}>
               <span className="chip" style={{ background: PALETTE.lime, color:'var(--ink)' }}>🔥 Série {p.streak}</span>
               <span className="chip" style={{ background: 'rgba(255,255,255,0.1)', color:'var(--paper)' }}>★ Top {Math.round((p.rank/p.rankTotal)*100*10)/10}%</span>
@@ -303,7 +314,7 @@ export function ProfileView() {
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', borderTop:'1px solid rgba(255,255,255,0.15)' }}>
           {([
-            ['Points', p.points.toLocaleString('fr-FR'), PALETTE.lime],
+            ['Points', displayPoints.toLocaleString('fr-FR'), PALETTE.lime],
             ['Classement', '#' + p.rank.toLocaleString('fr-FR'), PALETTE.blue],
             ['Cette semaine', '#' + p.weeklyRank, PALETTE.magenta],
             ['Précision', p.accuracy + '%', PALETTE.purple],

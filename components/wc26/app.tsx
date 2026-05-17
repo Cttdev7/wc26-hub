@@ -4,10 +4,11 @@
 // Ported 1:1 from design/js/14-app.jsx
 // (TweaksPanel dev tool dropped — its CSS-var defaults are baked into globals.css)
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
+import type { Profile } from '@/lib/db-types'
 import { LogoMark, Marquee, PALETTE } from './ui-primitives'
 import { HeroFeatured, UpcomingStrip, AnalysesGrid } from './main-views'
 import { FavoritesSection, NewsSection } from './home-sections'
@@ -30,18 +31,40 @@ export default function App() {
   const [activeMatch, setActiveMatch] = useState('m2')
   const [activeTeam, setActiveTeam] = useState('FRA')
   const [user, setUser] = useState<User | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
 
-  // Track Supabase auth session on the client.
+  // Fetch the profile row tied to a user (created by the on_auth_user_created trigger).
+  const fetchProfile = useCallback(async (userId: string) => {
+    const supabase = createClient()
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+    setProfile(data ?? null)
+  }, [])
+
+  // Re-fetch the profile (used after placing a bet to refresh total_points).
+  const refreshProfile = useCallback(async () => {
+    if (user) await fetchProfile(user.id)
+  }, [user, fetchProfile])
+
+  // Track Supabase auth session + profile on the client.
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null))
+    supabase.auth.getSession().then(({ data }) => {
+      const u = data.session?.user ?? null
+      setUser(u)
+      if (u) fetchProfile(u.id); else setProfile(null)
+    })
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      // Quitter la vue auth dès qu'on a une session valide.
-      if (session?.user) setView(prev => prev === 'auth' ? 'home' : prev)
+      const u = session?.user ?? null
+      setUser(u)
+      if (u) {
+        fetchProfile(u.id)
+        setView(prev => prev === 'auth' ? 'home' : prev)
+      } else {
+        setProfile(null)
+      }
     })
     return () => sub.subscription.unsubscribe()
-  }, [])
+  }, [fetchProfile])
 
   const openMatch = (id: string) => { setActiveMatch(id); setView('match'); window.scrollTo(0,0) }
   const openTeam  = (code: string) => { setActiveTeam(code); setView('team'); window.scrollTo(0,0) }
@@ -53,7 +76,7 @@ export default function App() {
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--paper)' }}>
-      <TopBar view={view} setView={setView} user={user} onSignOut={signOut}/>
+      <TopBar view={view} setView={setView} user={user} profile={profile} onSignOut={signOut}/>
       <Marquee
         color={PALETTE.blue}
         items={[
@@ -77,12 +100,12 @@ export default function App() {
       )}
       {view==='teams' && <TeamsView onOpenTeam={openTeam}/>}
       {view==='team' && <TeamDetailView teamCode={activeTeam} onBack={() => setView('teams')} onOpenMatch={openMatch}/>}
-      {view==='match' && <MatchView matchId={activeMatch} onBack={() => setView('home')} onOpenTeam={openTeam}/>}
+      {view==='match' && <MatchView matchId={activeMatch} onBack={() => setView('home')} onOpenTeam={openTeam} user={user} profile={profile} onBetPlaced={refreshProfile}/>}
       {view==='calendar' && <CalendarView onOpenMatch={openMatch}/>}
       {view==='groups' && <GroupsView onOpenTeam={openTeam} onOpenMatch={openMatch}/>}
       {view==='live' && <LiveView onOpenTeam={openTeam}/>}
-      {view==='predictions' && <PredictionsView onOpenMatch={openMatch}/>}
-      {view==='profile' && <ProfileView/>}
+      {view==='predictions' && <PredictionsView onOpenMatch={openMatch} profile={profile}/>}
+      {view==='profile' && <ProfileView profile={profile} user={user}/>}
       {view==='auth' && <AuthView onBack={() => setView('home')}/>}
 
       <Footer/>
@@ -90,9 +113,9 @@ export default function App() {
   )
 }
 
-function TopBar({ view, setView, user, onSignOut }: {
+function TopBar({ view, setView, user, profile, onSignOut }: {
   view: View; setView: (v: View) => void;
-  user: User | null; onSignOut: () => void;
+  user: User | null; profile: Profile | null; onSignOut: () => void;
 }) {
   const items: Array<[View, string, boolean?]> = [
     ['home', 'Accueil'],
@@ -143,7 +166,9 @@ function TopBar({ view, setView, user, onSignOut }: {
             <>
               <div style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', border:'1.5px solid var(--ink)', borderRadius:999, whiteSpace:'nowrap' }}>
                 <span style={{ width:7, height:7, borderRadius:'50%', background: PALETTE.lime, border:'1px solid var(--ink)' }}/>
-                <span className="mono" style={{ fontSize:11, fontWeight:700 }}>1 247 pts</span>
+                <span className="mono" style={{ fontSize:11, fontWeight:700 }}>
+                  {profile ? `${profile.total_points.toLocaleString('fr-FR')} pts` : '— pts'}
+                </span>
               </div>
               <button onClick={() => setView('profile')} className="pill-btn solid" style={{ padding:'8px 14px', fontSize:11.5, whiteSpace:'nowrap' }}>
                 <span style={{ width:16, height:16, borderRadius:'50%', background: PALETTE.magenta, border:'1.5px solid var(--paper)' }}/>

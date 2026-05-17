@@ -4,6 +4,8 @@
 // Ported 1:1 from design/js/08-main-views.jsx
 
 import { useState, useEffect } from 'react'
+import type { User } from '@supabase/supabase-js'
+import type { Profile, Bet } from '@/lib/db-types'
 import {
   TEAMS, MATCHES, FEATURED, FEATURED_PULSE, ANALYSES, TEAM_STATS, LINEUPS, PREDICTORS,
   CALENDAR, STAGE_INFO, TZ_LABEL, toParis,
@@ -304,7 +306,12 @@ export function TeamsView({ onOpenTeam }: { onOpenTeam: (code: string) => void }
   )
 }
 
-export function MatchView({ matchId, onBack, onOpenTeam }: { matchId: string; onBack: () => void; onOpenTeam?: (code: string) => void }) {
+export function MatchView({
+  matchId, onBack, onOpenTeam, user, profile, onBetPlaced,
+}: {
+  matchId: string; onBack: () => void; onOpenTeam?: (code: string) => void;
+  user?: User | null; profile?: Profile | null; onBetPlaced?: () => void | Promise<void>;
+}) {
   const m = CALENDAR.find(x => x.id===matchId) || MATCHES.find(x => x.id===matchId) || FEATURED
   const stageLbl = STAGE_INFO[m.stage]
     ? STAGE_INFO[m.stage].label + (m.group && m.group !== '-' ? ' · Groupe ' + m.group : '')
@@ -316,6 +323,42 @@ export function MatchView({ matchId, onBack, onOpenTeam }: { matchId: string; on
   const [pick, setPick] = useState<string | null>(null)
   const [stake, setStake] = useState(50)
   const potential = pick ? (stake * (m.odds as any)[pick]).toFixed(2) : '0.00'
+
+  // Bet placement (Supabase) — pulls the user's current bet on this match so the
+  // button can say "Pari placé" once committed.
+  const [busy, setBusy] = useState(false)
+  const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null)
+  const [existing, setExisting] = useState<Bet | null>(null)
+
+  useEffect(() => {
+    if (!user) { setExisting(null); return }
+    fetch(`/api/bets?match_id=${encodeURIComponent(m.id)}`)
+      .then(r => r.ok ? r.json() : { bets: [] })
+      .then((d: { bets: Bet[] }) => setExisting(d.bets[0] ?? null))
+      .catch(() => setExisting(null))
+  }, [user, m.id])
+
+  const placeBet = async () => {
+    if (!user) { onBack(); return }
+    if (!pick) return
+    if (!profile || profile.total_points < stake) {
+      setFeedback({ kind: 'err', msg: 'Solde insuffisant.' }); return
+    }
+    setBusy(true); setFeedback(null)
+    const res = await fetch('/api/bets', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ match_id: m.id, pick, stake, odds: (m.odds as any)[pick] }),
+    })
+    const json = await res.json()
+    if (!res.ok) setFeedback({ kind: 'err', msg: json.error || 'Erreur' })
+    else {
+      setFeedback({ kind: 'ok', msg: `Pari placé : ${stake} pts sur ${pick === 'home' ? home.code : pick === 'away' ? away.code : 'NUL'}` })
+      await onBetPlaced?.()
+      const refreshed = await fetch(`/api/bets?match_id=${encodeURIComponent(m.id)}`)
+      if (refreshed.ok) { const d: { bets: Bet[] } = await refreshed.json(); setExisting(d.bets[0] ?? null) }
+    }
+    setBusy(false)
+  }
 
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'32px 32px 64px' }}>
@@ -443,15 +486,38 @@ export function MatchView({ matchId, onBack, onOpenTeam }: { matchId: string; on
               </div>
             </div>
 
-            <button disabled={!pick} style={{
-              width:'100%', padding:'14px 0', borderRadius:12, border:'1.5px solid var(--ink)',
-              background: pick ? 'var(--ink)' : 'transparent',
-              color: pick ? PALETTE.lime : 'var(--muted)',
-              fontWeight:800, fontSize:13, letterSpacing:'0.06em', textTransform:'uppercase',
-              cursor: pick ? 'pointer' : 'not-allowed', opacity: pick ? 1 : 0.5,
-            }}>
-              {pick ? 'Valider mon pronostic' : 'Choisir un résultat'}
+            <button
+              disabled={!pick || busy}
+              onClick={placeBet}
+              style={{
+                width:'100%', padding:'14px 0', borderRadius:12, border:'1.5px solid var(--ink)',
+                background: pick ? 'var(--ink)' : 'transparent',
+                color: pick ? PALETTE.lime : 'var(--muted)',
+                fontWeight:800, fontSize:13, letterSpacing:'0.06em', textTransform:'uppercase',
+                cursor: (!pick || busy) ? 'not-allowed' : 'pointer', opacity: (!pick || busy) ? 0.5 : 1,
+              }}>
+              {busy ? 'Validation…'
+                : !user ? 'Connecte-toi pour parier'
+                : !pick ? 'Choisir un résultat'
+                : existing ? 'Mettre à jour mon pari'
+                : 'Valider mon pronostic'}
             </button>
+
+            {feedback && (
+              <div style={{
+                marginTop:12, padding:'10px 14px', borderRadius:8,
+                background: feedback.kind === 'ok' ? PALETTE.lime : 'rgba(225,6,0,0.1)',
+                color: feedback.kind === 'ok' ? 'var(--ink)' : PALETTE.red,
+                border: `1.5px solid ${feedback.kind === 'ok' ? 'var(--ink)' : PALETTE.red}`,
+                fontSize:12, fontWeight:700,
+              }}>{feedback.msg}</div>
+            )}
+
+            {existing && (
+              <div style={{ marginTop:12, padding:'10px 12px', background:'var(--ink)', color: PALETTE.lime, borderRadius:8, fontSize:11, fontWeight:700 }}>
+                Pari actuel · {existing.stake} pts sur {existing.pick === 'home' ? home.code : existing.pick === 'away' ? away.code : 'NUL'} · cote {Number(existing.odds).toFixed(2)}
+              </div>
+            )}
 
             <div style={{ marginTop:18, paddingTop:14, borderTop:'1px dashed var(--ink)', fontSize:11, fontWeight:600, color:'var(--ink)', textAlign:'center' }}>
               {FEATURED_PULSE.volume.toLocaleString('fr-FR')} parieurs ont déjà joué ce match
@@ -478,7 +544,7 @@ function BenchList({ title, coach, bench }: { title: string; coach: string; benc
   )
 }
 
-export function PredictionsView({ onOpenMatch }: { onOpenMatch: (id: string) => void }) {
+export function PredictionsView({ onOpenMatch, profile }: { onOpenMatch: (id: string) => void; profile?: Profile | null }) {
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'40px 32px 64px' }}>
       <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:24, gap:24 }}>
@@ -489,7 +555,7 @@ export function PredictionsView({ onOpenMatch }: { onOpenMatch: (id: string) => 
           </p>
         </div>
         <div style={{ display:'flex', gap:14 }}>
-          <BigStat label="Mes points" value="1 247" color={PALETTE.lime}/>
+          <BigStat label="Mes points" value={profile ? profile.total_points.toLocaleString('fr-FR') : '—'} color={PALETTE.lime}/>
           <BigStat label="Précision" value="62%" color={PALETTE.blue}/>
           <BigStat label="Série" value="3 🔥" color={PALETTE.magenta}/>
         </div>
