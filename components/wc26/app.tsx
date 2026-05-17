@@ -4,7 +4,7 @@
 // Ported 1:1 from design/js/14-app.jsx
 // (TweaksPanel dev tool dropped — its CSS-var defaults are baked into globals.css)
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
@@ -33,38 +33,30 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
 
-  // Fetch the profile row tied to a user (created by the on_auth_user_created trigger).
-  const fetchProfile = useCallback(async (userId: string) => {
-    const supabase = createClient()
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
-    setProfile(data ?? null)
-  }, [])
-
-  // Re-fetch the profile (used after placing a bet to refresh total_points).
-  const refreshProfile = useCallback(async () => {
-    if (user) await fetchProfile(user.id)
-  }, [user, fetchProfile])
-
-  // Track Supabase auth session + profile on the client.
+  // Track Supabase auth session + matching profile row on the client.
   useEffect(() => {
     const supabase = createClient()
+    const loadProfile = async (userId: string) => {
+      const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+      setProfile(data ?? null)
+    }
     supabase.auth.getSession().then(({ data }) => {
       const u = data.session?.user ?? null
       setUser(u)
-      if (u) fetchProfile(u.id); else setProfile(null)
+      if (u) loadProfile(u.id); else setProfile(null)
     })
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null
       setUser(u)
       if (u) {
-        fetchProfile(u.id)
+        loadProfile(u.id)
         setView(prev => prev === 'auth' ? 'home' : prev)
       } else {
         setProfile(null)
       }
     })
     return () => sub.subscription.unsubscribe()
-  }, [fetchProfile])
+  }, [])
 
   const openMatch = (id: string) => { setActiveMatch(id); setView('match'); window.scrollTo(0,0) }
   const openTeam  = (code: string) => { setActiveTeam(code); setView('team'); window.scrollTo(0,0) }
@@ -100,7 +92,7 @@ export default function App() {
       )}
       {view==='teams' && <TeamsView onOpenTeam={openTeam}/>}
       {view==='team' && <TeamDetailView teamCode={activeTeam} onBack={() => setView('teams')} onOpenMatch={openMatch}/>}
-      {view==='match' && <MatchView matchId={activeMatch} onBack={() => setView('home')} onOpenTeam={openTeam} user={user} profile={profile} onBetPlaced={refreshProfile}/>}
+      {view==='match' && <MatchView matchId={activeMatch} onBack={() => setView('home')} onOpenTeam={openTeam}/>}
       {view==='calendar' && <CalendarView onOpenMatch={openMatch}/>}
       {view==='groups' && <GroupsView onOpenTeam={openTeam} onOpenMatch={openMatch}/>}
       {view==='live' && <LiveView onOpenTeam={openTeam}/>}

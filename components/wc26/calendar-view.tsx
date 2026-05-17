@@ -309,18 +309,12 @@ function CalMatchRow({ m, onOpenMatch, live }: { m: any; onOpenMatch: (id: strin
         <div style={{ color:'var(--ink)', fontSize:12, fontWeight:800, marginTop:2 }}>{m.city}</div>
       </div>
 
-      {!finished && !isLive && m.odds && (
-        <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-          <OddPill label="1" value={m.odds.home}/>
-          <OddPill label="N" value={m.odds.draw}/>
-          <OddPill label="2" value={m.odds.away}/>
-        </div>
-      )}
-      {(finished || isLive) && (
-        <div style={{ fontSize:11, fontWeight:800, letterSpacing:'0.06em', color: isLive ? PALETTE.red : 'var(--muted)' }}>
-          {isLive ? 'EN COURS →' : 'RÉSULTAT →'}
-        </div>
-      )}
+      <button
+        onClick={(e) => { e.stopPropagation(); onOpenMatch(m.id) }}
+        className="pill-btn solid"
+        style={{ padding:'8px 16px', fontSize:11.5, whiteSpace:'nowrap' }}>
+        Voir le match →
+      </button>
     </div>
   )
 }
@@ -338,11 +332,3 @@ function TeamLine({ team, score, winner }: { team: any; score: string | null; wi
   )
 }
 
-function OddPill({ label, value }: { label: string; value: number }) {
-  return (
-    <div style={{ padding:'6px 10px', border:'1px solid var(--line)', borderRadius:8, textAlign:'center', minWidth:48 }}>
-      <div style={{ fontSize:9, fontWeight:800, color:'var(--muted)', letterSpacing:'0.06em' }}>{label}</div>
-      <div className="mono" style={{ fontSize:12, fontWeight:800, marginTop:1 }}>{(+value).toFixed(2)}</div>
-    </div>
-  )
-}

@@ -4,8 +4,7 @@
 // Ported 1:1 from design/js/08-main-views.jsx
 
 import { useState, useEffect } from 'react'
-import type { User } from '@supabase/supabase-js'
-import type { Profile, Bet } from '@/lib/db-types'
+import type { Profile } from '@/lib/db-types'
 import {
   TEAMS, MATCHES, FEATURED, FEATURED_PULSE, ANALYSES, TEAM_STATS, LINEUPS, PREDICTORS,
   CALENDAR, STAGE_INFO, TZ_LABEL, toParis,
@@ -307,10 +306,9 @@ export function TeamsView({ onOpenTeam }: { onOpenTeam: (code: string) => void }
 }
 
 export function MatchView({
-  matchId, onBack, onOpenTeam, user, profile, onBetPlaced,
+  matchId, onBack, onOpenTeam,
 }: {
   matchId: string; onBack: () => void; onOpenTeam?: (code: string) => void;
-  user?: User | null; profile?: Profile | null; onBetPlaced?: () => void | Promise<void>;
 }) {
   const m = CALENDAR.find(x => x.id===matchId) || MATCHES.find(x => x.id===matchId) || FEATURED
   const stageLbl = STAGE_INFO[m.stage]
@@ -320,53 +318,12 @@ export function MatchView({
   const homeLineup = LINEUPS[m.home]
   const awayLineup = LINEUPS[m.away]
 
-  const [pick, setPick] = useState<string | null>(null)
-  const [stake, setStake] = useState(50)
-  const potential = pick ? (stake * (m.odds as any)[pick]).toFixed(2) : '0.00'
-
-  // Bet placement (Supabase) — pulls the user's current bet on this match so the
-  // button can say "Pari placé" once committed.
-  const [busy, setBusy] = useState(false)
-  const [feedback, setFeedback] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null)
-  const [existing, setExisting] = useState<Bet | null>(null)
-
-  useEffect(() => {
-    if (!user) { setExisting(null); return }
-    fetch(`/api/bets?match_id=${encodeURIComponent(m.id)}`)
-      .then(r => r.ok ? r.json() : { bets: [] })
-      .then((d: { bets: Bet[] }) => setExisting(d.bets[0] ?? null))
-      .catch(() => setExisting(null))
-  }, [user, m.id])
-
-  const placeBet = async () => {
-    if (!user) { onBack(); return }
-    if (!pick) return
-    if (!profile || profile.total_points < stake) {
-      setFeedback({ kind: 'err', msg: 'Solde insuffisant.' }); return
-    }
-    setBusy(true); setFeedback(null)
-    const res = await fetch('/api/bets', {
-      method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ match_id: m.id, pick, stake, odds: (m.odds as any)[pick] }),
-    })
-    const json = await res.json()
-    if (!res.ok) setFeedback({ kind: 'err', msg: json.error || 'Erreur' })
-    else {
-      setFeedback({ kind: 'ok', msg: `Pari placé : ${stake} pts sur ${pick === 'home' ? home.code : pick === 'away' ? away.code : 'NUL'}` })
-      await onBetPlaced?.()
-      const refreshed = await fetch(`/api/bets?match_id=${encodeURIComponent(m.id)}`)
-      if (refreshed.ok) { const d: { bets: Bet[] } = await refreshed.json(); setExisting(d.bets[0] ?? null) }
-    }
-    setBusy(false)
-  }
-
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'32px 32px 64px' }}>
       <button onClick={onBack} style={{ background:'none', border:'none', color:'var(--muted)', fontSize:12, fontWeight:800, letterSpacing:'0.08em', textTransform:'uppercase', padding:0, marginBottom:18 }}>← Retour</button>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:24 }}>
-        <div>
-          <div className="card" style={{ padding:28, marginBottom:16, background: PALETTE.ink, color:'#FFFFFF', border:'1.5px solid var(--ink)' }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <div className="card" style={{ padding:28, background: PALETTE.ink, color:'#FFFFFF', border:'1.5px solid var(--ink)' }}>
             <div style={{ display:'flex', justifyContent:'space-between', marginBottom:18 }}>
               <span className="chip" style={{ background: PALETTE.lime, color:'var(--ink)' }}>● LIVE BIENTÔT</span>
               <span style={{ fontSize:11, fontWeight:700, opacity:0.7, letterSpacing:'0.06em' }}>{stageLbl} · {m.venue}</span>
@@ -436,94 +393,6 @@ export function MatchView({
           </div>
 
           <MatchPreviewBlock matchId={m.id} home={home} away={away}/>
-        </div>
-
-        <div>
-          <div className="card" style={{ padding:24, background: PALETTE.lime, border:'1.5px solid var(--ink)', marginBottom:16, position:'sticky', top:16 }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-              <span className="chip" style={{ background:'var(--ink)', color: PALETTE.lime }}>★ PARI COMMUNAUTAIRE</span>
-              <span style={{ fontSize:11, fontWeight:700 }}>Mise sans argent réel</span>
-            </div>
-            <h3 className="display" style={{ fontSize:32, margin:'0 0 18px' }}>Ton pronostic</h3>
-
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, marginBottom:18 }}>
-              {([['home','1 · '+home.code, m.odds.home],['draw','NUL', m.odds.draw],['away','2 · '+away.code, m.odds.away]] as Array<[string, string, number]>).map(([k, lbl, odds]) => (
-                <button key={k} onClick={() => setPick(k)} style={{
-                  padding:'14px 8px', borderRadius:12, border:'1.5px solid var(--ink)',
-                  background: pick===k ? 'var(--ink)' : 'var(--paper)',
-                  color: pick===k ? 'var(--paper)' : 'var(--ink)',
-                  display:'flex', flexDirection:'column', alignItems:'center', gap:4,
-                  transition:'all .12s',
-                }}>
-                  <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.06em' }}>{lbl}</span>
-                  <span className="display mono" style={{ fontSize:22 }}>{odds.toFixed(2)}</span>
-                </button>
-              ))}
-            </div>
-
-            <div style={{ marginBottom:18 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
-                <span style={{ fontSize:12, fontWeight:800 }}>Mise (points)</span>
-                <span className="mono" style={{ fontSize:14, fontWeight:800 }}>{stake}</span>
-              </div>
-              <input type="range" min="10" max="500" step="10" value={stake} onChange={e => setStake(+e.target.value)}
-                style={{ width:'100%', accentColor:'var(--ink)' }}/>
-              <div style={{ display:'flex', gap:6, marginTop:8 }}>
-                {[25,50,100,250].map(v => (
-                  <button key={v} onClick={() => setStake(v)} style={{
-                    flex:1, padding:'6px 0', borderRadius:8, border:'1px solid var(--ink)',
-                    background: stake===v ? 'var(--ink)' : 'transparent', color: stake===v ? PALETTE.lime : 'var(--ink)',
-                    fontSize:11, fontWeight:800,
-                  }}>{v}</button>
-                ))}
-              </div>
-            </div>
-
-            <div style={{ padding:'14px 18px', background:'var(--ink)', color: PALETTE.lime, borderRadius:12, marginBottom:14 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
-                <span style={{ fontSize:11, fontWeight:700, letterSpacing:'0.06em' }}>GAIN POTENTIEL</span>
-                <span className="display mono" style={{ fontSize:30 }}>{potential}</span>
-              </div>
-            </div>
-
-            <button
-              disabled={!pick || busy}
-              onClick={placeBet}
-              style={{
-                width:'100%', padding:'14px 0', borderRadius:12, border:'1.5px solid var(--ink)',
-                background: pick ? 'var(--ink)' : 'transparent',
-                color: pick ? PALETTE.lime : 'var(--muted)',
-                fontWeight:800, fontSize:13, letterSpacing:'0.06em', textTransform:'uppercase',
-                cursor: (!pick || busy) ? 'not-allowed' : 'pointer', opacity: (!pick || busy) ? 0.5 : 1,
-              }}>
-              {busy ? 'Validation…'
-                : !user ? 'Connecte-toi pour parier'
-                : !pick ? 'Choisir un résultat'
-                : existing ? 'Mettre à jour mon pari'
-                : 'Valider mon pronostic'}
-            </button>
-
-            {feedback && (
-              <div style={{
-                marginTop:12, padding:'10px 14px', borderRadius:8,
-                background: feedback.kind === 'ok' ? PALETTE.lime : 'rgba(225,6,0,0.1)',
-                color: feedback.kind === 'ok' ? 'var(--ink)' : PALETTE.red,
-                border: `1.5px solid ${feedback.kind === 'ok' ? 'var(--ink)' : PALETTE.red}`,
-                fontSize:12, fontWeight:700,
-              }}>{feedback.msg}</div>
-            )}
-
-            {existing && (
-              <div style={{ marginTop:12, padding:'10px 12px', background:'var(--ink)', color: PALETTE.lime, borderRadius:8, fontSize:11, fontWeight:700 }}>
-                Pari actuel · {existing.stake} pts sur {existing.pick === 'home' ? home.code : existing.pick === 'away' ? away.code : 'NUL'} · cote {Number(existing.odds).toFixed(2)}
-              </div>
-            )}
-
-            <div style={{ marginTop:18, paddingTop:14, borderTop:'1px dashed var(--ink)', fontSize:11, fontWeight:600, color:'var(--ink)', textAlign:'center' }}>
-              {FEATURED_PULSE.volume.toLocaleString('fr-FR')} parieurs ont déjà joué ce match
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   )
