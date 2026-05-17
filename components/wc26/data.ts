@@ -415,11 +415,11 @@ export function toParis(localTime: string, vKey?: string) {
 }
 
 export const CALENDAR: Match[] = [
-  fx('c1',  '2026-06-11','20:00','MEX','JPN','MD1','A','MEX', '3-1','finished'),
-  fx('c2',  '2026-06-12','18:00','CAN','GER','MD1','B','TOR', '1-2','finished'),
-  fx('c3',  '2026-06-12','21:00','USA','NED','MD1','C','LA',  '2-2','finished'),
-  fx('c4',  '2026-06-13','18:00','ESP','POR','MD1','D','NY',  '1-0','finished'),
-  fx('c5',  '2026-06-14','15:00','ARG','JPN','MD1','A','LA',  '2-0','finished'),
+  fx('c1',  '2026-06-11','20:00','MEX','JPN','MD1','A','MEX'),
+  fx('c2',  '2026-06-12','18:00','CAN','GER','MD1','B','TOR'),
+  fx('c3',  '2026-06-12','21:00','USA','NED','MD1','C','LA'),
+  fx('c4',  '2026-06-13','18:00','ESP','POR','MD1','D','NY'),
+  fx('c5',  '2026-06-14','15:00','ARG','JPN','MD1','A','LA'),
   fx('c6',  '2026-06-15','21:00','ENG','ARG','MD1','E','MIA'),
   fx('c7',  '2026-06-15','18:00','GER','BRA','MD1','F','PHI'),
   fx('m1', '2026-06-18','21:00','POR','ARG','MD2','A','LA',  null,'scheduled',{home:3.2,draw:3.4,away:2.1}),

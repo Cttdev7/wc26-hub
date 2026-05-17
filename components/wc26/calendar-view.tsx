@@ -2,14 +2,47 @@
 
 // Full tournament calendar view
 // Ported 1:1 from design/js/11-calendar-view.jsx
+// + overlay scores from /api/scores (API-Football, cached 5 min)
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TEAMS, CALENDAR, STAGE_INFO, phaseGroup, TZ_LABEL, toParis } from './data'
 import { Flag, PALETTE } from './ui-primitives'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const teamByCode = (c: string) => TEAMS.find(t => t.code===c)!
+
+// Shape returned by GET /api/scores
+type ScoreUpdate = {
+  home_code: string; away_code: string; kickoff_date: string;
+  status_short: string;
+  bucket: 'finished' | 'live' | 'scheduled' | 'other';
+  score_home: number | null; score_away: number | null;
+  elapsed: number | null;
+}
+
+// Key used to look up an API score from a mock match row.
+const keyFor = (home: string, away: string, date: string) => `${home}-${away}-${date}`
+
+// Lightweight hook : fetch /api/scores once + every 60 s while the tab is open.
+function useScoreOverlay(): Map<string, ScoreUpdate> {
+  const [scores, setScores] = useState<ScoreUpdate[]>([])
+  useEffect(() => {
+    let cancelled = false
+    const load = () => fetch('/api/scores')
+      .then(r => r.ok ? r.json() : { scores: [] })
+      .then((d: { scores?: ScoreUpdate[] }) => { if (!cancelled) setScores(d.scores ?? []) })
+      .catch(() => { /* silent : on garde l'affichage scheduled */ })
+    load()
+    const interval = setInterval(load, 60_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
+  return useMemo(() => {
+    const m = new Map<string, ScoreUpdate>()
+    for (const s of scores) m.set(keyFor(s.home_code, s.away_code, s.kickoff_date), s)
+    return m
+  }, [scores])
+}
 
 function fmtDay(iso: string) {
   const d = new Date(iso + 'T00:00:00')
@@ -28,6 +61,7 @@ export function CalendarView({ onOpenMatch }: { onOpenMatch: (id: string) => voi
   const [groupFilter, setGroupFilter] = useState('ALL')
   const [teamFilter, setTeamFilter] = useState('ALL')
 
+  const scoreMap = useScoreOverlay()
   const all = CALENDAR
   const matches = all.filter(m => {
     if (phaseFilter !== 'ALL') {
@@ -65,7 +99,11 @@ export function CalendarView({ onOpenMatch }: { onOpenMatch: (id: string) => voi
   const teamsList = TEAMS
 
   const total = all.length
-  const played = all.filter(m => m.status==='finished').length
+  // Compte les matchs vraiment terminés via l'overlay API ; à défaut, le mock.
+  const played = all.filter(m => {
+    const live = scoreMap.get(keyFor(m.home, m.away, m.date))
+    return live ? live.bucket === 'finished' : m.status === 'finished'
+  }).length
   const upcoming = total - played
 
   return (
@@ -148,7 +186,9 @@ export function CalendarView({ onOpenMatch }: { onOpenMatch: (id: string) => voi
 
                 <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
                   {dayMatches.map(m => (
-                    <CalMatchRow key={m.id} m={m} onOpenMatch={onOpenMatch}/>
+                    <CalMatchRow
+                      key={m.id} m={m} onOpenMatch={onOpenMatch}
+                      live={scoreMap.get(keyFor(m.home, m.away, m.date))}/>
                   ))}
                 </div>
               </div>
@@ -179,10 +219,20 @@ function CalKpi({ color, label, value }: { color: string; label: string; value: 
   )
 }
 
-function CalMatchRow({ m, onOpenMatch }: { m: any; onOpenMatch: (id: string) => void }) {
+function CalMatchRow({ m, onOpenMatch, live }: { m: any; onOpenMatch: (id: string) => void; live?: ScoreUpdate }) {
   const home = teamByCode(m.home), away = teamByCode(m.away)
   const si = STAGE_INFO[m.stage]
-  const finished = m.status === 'finished'
+
+  // Si l'API a un score pour ce match, on l'overlay sur le mock.
+  const isFinished = live ? live.bucket === 'finished' : m.status === 'finished'
+  const isLive     = live?.bucket === 'live'
+  const scoreH = live?.score_home != null ? String(live.score_home)
+                : m.score ? m.score.split('-')[0] : null
+  const scoreA = live?.score_away != null ? String(live.score_away)
+                : m.score ? m.score.split('-')[1] : null
+  const finished = isFinished
+  const winnerHome = finished && scoreH != null && scoreA != null && Number(scoreH) > Number(scoreA)
+  const winnerAway = finished && scoreH != null && scoreA != null && Number(scoreA) > Number(scoreH)
 
   return (
     <div onClick={() => onOpenMatch(m.id)} className="card" style={{
@@ -198,6 +248,22 @@ function CalMatchRow({ m, onOpenMatch }: { m: any; onOpenMatch: (id: string) => 
         {finished ? (
           <>
             <span className="chip" style={{ background:'var(--muted)', color:'var(--paper)', fontSize:10, padding:'3px 10px' }}>TERMINÉ</span>
+            <div style={{ fontSize:9, fontWeight:700, color:'var(--muted)', marginTop:6, letterSpacing:'0.06em' }}>
+              {si.label.toUpperCase()}{m.group !== '-' ? ' · GR ' + m.group : ''}
+            </div>
+          </>
+        ) : isLive ? (
+          <>
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <span style={{ position:'relative', width:8, height:8 }}>
+                <span style={{ position:'absolute', inset:0, borderRadius:'50%', background: PALETTE.red, animation:'pulse 1.4s infinite' }}/>
+                <span style={{ position:'absolute', inset:2, borderRadius:'50%', background: PALETTE.red }}/>
+              </span>
+              <span className="display" style={{ fontSize:14, color: PALETTE.red }}>EN DIRECT</span>
+            </div>
+            {live?.elapsed != null && (
+              <div className="mono" style={{ fontSize:13, fontWeight:800, marginTop:4 }}>{live.elapsed}&apos;</div>
+            )}
             <div style={{ fontSize:9, fontWeight:700, color:'var(--muted)', marginTop:6, letterSpacing:'0.06em' }}>
               {si.label.toUpperCase()}{m.group !== '-' ? ' · GR ' + m.group : ''}
             </div>
@@ -234,8 +300,8 @@ function CalMatchRow({ m, onOpenMatch }: { m: any; onOpenMatch: (id: string) => 
       </div>
 
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-        <TeamLine team={home} score={finished ? m.score.split('-')[0] : null} winner={finished && +m.score.split('-')[0] > +m.score.split('-')[1]}/>
-        <TeamLine team={away} score={finished ? m.score.split('-')[1] : null} winner={finished && +m.score.split('-')[1] > +m.score.split('-')[0]}/>
+        <TeamLine team={home} score={(finished || isLive) ? scoreH : null} winner={winnerHome}/>
+        <TeamLine team={away} score={(finished || isLive) ? scoreA : null} winner={winnerAway}/>
       </div>
 
       <div style={{ textAlign:'right', fontSize:10, color:'var(--muted)', fontWeight:700, lineHeight:1.4, minWidth:120 }}>
@@ -243,15 +309,17 @@ function CalMatchRow({ m, onOpenMatch }: { m: any; onOpenMatch: (id: string) => 
         <div style={{ color:'var(--ink)', fontSize:12, fontWeight:800, marginTop:2 }}>{m.city}</div>
       </div>
 
-      {!finished && m.odds && (
+      {!finished && !isLive && m.odds && (
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
           <OddPill label="1" value={m.odds.home}/>
           <OddPill label="N" value={m.odds.draw}/>
           <OddPill label="2" value={m.odds.away}/>
         </div>
       )}
-      {finished && (
-        <div style={{ fontSize:11, fontWeight:800, letterSpacing:'0.06em', color:'var(--muted)' }}>RÉSULTAT →</div>
+      {(finished || isLive) && (
+        <div style={{ fontSize:11, fontWeight:800, letterSpacing:'0.06em', color: isLive ? PALETTE.red : 'var(--muted)' }}>
+          {isLive ? 'EN COURS →' : 'RÉSULTAT →'}
+        </div>
       )}
     </div>
   )
