@@ -4,11 +4,14 @@
 // Ported 1:1 from design/js/14-app.jsx
 // (TweaksPanel dev tool dropped — its CSS-var defaults are baked into globals.css)
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
+import type { User } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/client'
 import { LogoMark, Marquee, PALETTE } from './ui-primitives'
 import { HeroFeatured, UpcomingStrip, AnalysesGrid } from './main-views'
 import { FavoritesSection, NewsSection } from './home-sections'
+import { AuthView } from './auth-view'
 
 // Heavy views — loaded on demand only when the user navigates to them
 const TeamsView       = dynamic(() => import('./main-views').then(m => ({ default: m.TeamsView })))
@@ -20,19 +23,37 @@ const CalendarView    = dynamic(() => import('./calendar-view').then(m => ({ def
 const GroupsView      = dynamic(() => import('./groups-view').then(m => ({ default: m.GroupsView })))
 const LiveView        = dynamic(() => import('./live-view').then(m => ({ default: m.LiveView })))
 
-type View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile'
+type View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile' | 'auth'
 
 export default function App() {
   const [view, setView] = useState<View>('home')
   const [activeMatch, setActiveMatch] = useState('m2')
   const [activeTeam, setActiveTeam] = useState('FRA')
+  const [user, setUser] = useState<User | null>(null)
+
+  // Track Supabase auth session on the client.
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getSession().then(({ data }) => setUser(data.session?.user ?? null))
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null)
+      // Quitter la vue auth dès qu'on a une session valide.
+      if (session?.user) setView(prev => prev === 'auth' ? 'home' : prev)
+    })
+    return () => sub.subscription.unsubscribe()
+  }, [])
 
   const openMatch = (id: string) => { setActiveMatch(id); setView('match'); window.scrollTo(0,0) }
   const openTeam  = (code: string) => { setActiveTeam(code); setView('team'); window.scrollTo(0,0) }
+  const signOut = async () => {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    setView('home'); window.scrollTo(0,0)
+  }
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--paper)' }}>
-      <TopBar view={view} setView={setView}/>
+      <TopBar view={view} setView={setView} user={user} onSignOut={signOut}/>
       <Marquee
         color={PALETTE.blue}
         items={[
@@ -51,7 +72,7 @@ export default function App() {
           <FavoritesSection onOpenTeam={openTeam}/>
           <NewsSection/>
           <AnalysesGrid/>
-          <CommunityCallout onJoin={() => setView('predictions')}/>
+          <CommunityCallout onJoin={() => setView(user ? 'predictions' : 'auth')}/>
         </>
       )}
       {view==='teams' && <TeamsView onOpenTeam={openTeam}/>}
@@ -62,13 +83,17 @@ export default function App() {
       {view==='live' && <LiveView onOpenTeam={openTeam}/>}
       {view==='predictions' && <PredictionsView onOpenMatch={openMatch}/>}
       {view==='profile' && <ProfileView/>}
+      {view==='auth' && <AuthView onBack={() => setView('home')}/>}
 
       <Footer/>
     </div>
   )
 }
 
-function TopBar({ view, setView }: { view: View; setView: (v: View) => void }) {
+function TopBar({ view, setView, user, onSignOut }: {
+  view: View; setView: (v: View) => void;
+  user: User | null; onSignOut: () => void;
+}) {
   const items: Array<[View, string, boolean?]> = [
     ['home', 'Accueil'],
     ['live', 'En direct', true],
@@ -114,14 +139,27 @@ function TopBar({ view, setView }: { view: View; setView: (v: View) => void }) {
         </nav>
 
         <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', border:'1.5px solid var(--ink)', borderRadius:999, whiteSpace:'nowrap' }}>
-            <span style={{ width:7, height:7, borderRadius:'50%', background: PALETTE.lime, border:'1px solid var(--ink)' }}/>
-            <span className="mono" style={{ fontSize:11, fontWeight:700 }}>1 247 pts</span>
-          </div>
-          <button onClick={() => setView('profile')} className="pill-btn solid" style={{ padding:'8px 14px', fontSize:11.5, whiteSpace:'nowrap' }}>
-            <span style={{ width:16, height:16, borderRadius:'50%', background: PALETTE.magenta, border:'1.5px solid var(--paper)' }}/>
-            Profil
-          </button>
+          {user ? (
+            <>
+              <div style={{ display:'flex', alignItems:'center', gap:6, padding:'6px 12px', border:'1.5px solid var(--ink)', borderRadius:999, whiteSpace:'nowrap' }}>
+                <span style={{ width:7, height:7, borderRadius:'50%', background: PALETTE.lime, border:'1px solid var(--ink)' }}/>
+                <span className="mono" style={{ fontSize:11, fontWeight:700 }}>1 247 pts</span>
+              </div>
+              <button onClick={() => setView('profile')} className="pill-btn solid" style={{ padding:'8px 14px', fontSize:11.5, whiteSpace:'nowrap' }}>
+                <span style={{ width:16, height:16, borderRadius:'50%', background: PALETTE.magenta, border:'1.5px solid var(--paper)' }}/>
+                Profil
+              </button>
+              <button onClick={onSignOut} aria-label="Déconnexion" title="Déconnexion" style={{
+                padding:'8px 12px', borderRadius:999, border:'1.5px solid var(--line)',
+                background:'var(--paper)', color:'var(--muted)', fontSize:11, fontWeight:700,
+                cursor:'pointer', whiteSpace:'nowrap',
+              }}>↪</button>
+            </>
+          ) : (
+            <button onClick={() => setView('auth')} className="pill-btn solid" style={{ padding:'8px 16px', fontSize:11.5, whiteSpace:'nowrap' }}>
+              Connexion
+            </button>
+          )}
         </div>
       </div>
     </header>

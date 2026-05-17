@@ -8,5 +8,7 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     await supabase.auth.exchangeCodeForSession(code)
   }
-  return NextResponse.redirect(`${origin}/profil`)
+  // The /profil route no longer exists since the design port — the SPA shows
+  // the profile via internal view state once the session cookie is present.
+  return NextResponse.redirect(`${origin}/`)
 }
