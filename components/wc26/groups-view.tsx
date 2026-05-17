@@ -2,8 +2,9 @@
 
 // Groups (poules) view — 12 groups standings + matches per group
 // Ported 1:1 from design/js/12-groups-view.jsx
+// + overlay standings from /api/standings (API-Football, cached 5 min)
 
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { TEAMS, GROUPS, GROUP_LETTERS, STANDINGS, CALENDAR, STAGE_INFO } from './data'
 import { Flag, PALETTE } from './ui-primitives'
 
@@ -11,13 +12,40 @@ import { Flag, PALETTE } from './ui-primitives'
 
 const teamByCode = (c: string) => TEAMS.find(t => t.code===c)!
 
+type Standing = { P: number; W: number; D: number; L: number; GF: number; GA: number; Pts: number; GD: number }
+type StandingUpdate = Standing & { code: string; group: string; rank: number | null }
+
+// Fetch /api/standings on mount + every 60 s ; build a quick lookup by team code.
+function useStandingsOverlay(): Map<string, Standing> {
+  const [rows, setRows] = useState<StandingUpdate[]>([])
+  useEffect(() => {
+    let cancelled = false
+    const load = () => fetch('/api/standings')
+      .then(r => r.ok ? r.json() : { standings: [] })
+      .then((d: { standings?: StandingUpdate[] }) => { if (!cancelled) setRows(d.standings ?? []) })
+      .catch(() => { /* silent : on garde le fallback à zéro */ })
+    load()
+    const interval = setInterval(load, 60_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
+  return useMemo(() => {
+    const m = new Map<string, Standing>()
+    for (const r of rows) m.set(r.code, { P:r.P, W:r.W, D:r.D, L:r.L, GF:r.GF, GA:r.GA, GD:r.GD, Pts:r.Pts })
+    return m
+  }, [rows])
+}
+
+const standingFor = (overlay: Map<string, Standing>, code: string): Standing =>
+  overlay.get(code) ?? STANDINGS[code]
+
 export function GroupsView({
   onOpenTeam, onOpenMatch,
 }: { onOpenTeam: (code: string) => void; onOpenMatch: (id: string) => void }) {
   const [focused, setFocused] = useState<string | null>(null)
+  const overlay = useStandingsOverlay()
 
   if (focused) {
-    return <GroupDetail letter={focused} onBack={() => setFocused(null)} onOpenTeam={onOpenTeam} onOpenMatch={onOpenMatch}/>
+    return <GroupDetail letter={focused} onBack={() => setFocused(null)} onOpenTeam={onOpenTeam} onOpenMatch={onOpenMatch} overlay={overlay}/>
   }
 
   return (
@@ -39,7 +67,7 @@ export function GroupsView({
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:16 }}>
         {GROUP_LETTERS.map(letter => (
-          <GroupCard key={letter} letter={letter} onOpenTeam={onOpenTeam} onFocus={() => setFocused(letter)}/>
+          <GroupCard key={letter} letter={letter} onOpenTeam={onOpenTeam} onFocus={() => setFocused(letter)} overlay={overlay}/>
         ))}
       </div>
     </section>
@@ -56,12 +84,12 @@ function LegendDot({ color, label }: { color: string; label: string }) {
 }
 
 function GroupCard({
-  letter, onOpenTeam, onFocus,
-}: { letter: string; onOpenTeam: (code: string) => void; onFocus: () => void }) {
+  letter, onOpenTeam, onFocus, overlay,
+}: { letter: string; onOpenTeam: (code: string) => void; onFocus: () => void; overlay: Map<string, Standing> }) {
   const codes = GROUPS[letter]
   const rows = codes.map(c => ({
     team: teamByCode(c),
-    s: STANDINGS[c],
+    s: standingFor(overlay, c),
   })).sort((a, b) => {
     if (b.s.Pts !== a.s.Pts) return b.s.Pts - a.s.Pts
     if (b.s.GD !== a.s.GD) return b.s.GD - a.s.GD
@@ -143,10 +171,10 @@ function td(): React.CSSProperties {
 }
 
 function GroupDetail({
-  letter, onBack, onOpenTeam, onOpenMatch,
-}: { letter: string; onBack: () => void; onOpenTeam?: (code: string) => void; onOpenMatch?: (id: string) => void }) {
+  letter, onBack, onOpenTeam, onOpenMatch, overlay,
+}: { letter: string; onBack: () => void; onOpenTeam?: (code: string) => void; onOpenMatch?: (id: string) => void; overlay: Map<string, Standing> }) {
   const codes = GROUPS[letter]
-  const rows = codes.map(c => ({ team: teamByCode(c), s: STANDINGS[c] }))
+  const rows = codes.map(c => ({ team: teamByCode(c), s: standingFor(overlay, c) }))
     .sort((a, b) => (b.s.Pts - a.s.Pts) || (b.s.GD - a.s.GD) || (b.s.GF - a.s.GF))
 
   const matches = CALENDAR.filter(m => m.group === letter)

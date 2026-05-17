@@ -491,27 +491,10 @@ TEAMS.forEach(t => {
 })
 export const GROUP_LETTERS = Object.keys(GROUPS).sort()
 
-function buildStanding(posInGroup: number) {
-  const stories = [
-    { P:2, W:2, D:0, L:0, GF:5, GA:1 },
-    { P:2, W:1, D:1, L:0, GF:3, GA:1 },
-    { P:1, W:0, D:1, L:0, GF:1, GA:1 },
-    { P:2, W:0, D:0, L:2, GF:0, GA:4 },
-  ]
-  const base = stories[Math.min(posInGroup, 3)]
-  const Pts = base.W*3 + base.D
-  const GD = base.GF - base.GA
-  return { ...base, Pts, GD }
-}
+// Tournoi pas encore commencé : tous les standings démarrent à zéro.
+// La GroupsView overlay les vrais chiffres depuis /api/standings (API-Football)
+// dès qu'ils sont disponibles.
+const ZERO_STANDING = { P:0, W:0, D:0, L:0, GF:0, GA:0, Pts:0, GD:0 }
 
 export const STANDINGS: Record<string, { P: number; W: number; D: number; L: number; GF: number; GA: number; Pts: number; GD: number }> = {}
-GROUP_LETTERS.forEach(g => {
-  const ordered = [...GROUPS[g]].sort((a,b) => {
-    const ta = TEAMS.find(t => t.code===a)
-    const tb = TEAMS.find(t => t.code===b)
-    return (ta?.rank || 99) - (tb?.rank || 99)
-  })
-  ordered.forEach((code, i) => {
-    STANDINGS[code] = buildStanding(i)
-  })
-})
+TEAMS.forEach(t => { STANDINGS[t.code] = { ...ZERO_STANDING } })
