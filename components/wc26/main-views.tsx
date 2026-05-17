@@ -478,7 +478,7 @@ export function PredictionsView({
           </div>
         </div>
 
-        <div className="card" style={{ padding:0, overflow:'hidden', height:'fit-content' }}>
+        <div className="card" style={{ padding:0, overflow:'hidden', height:'fit-content', marginTop:38 }}>
           <div style={{ padding:'18px 20px', background: PALETTE.ink, color:'#FFFFFF' }}>
             <div className="display" style={{ fontSize:22 }}>🏆 Classement</div>
             <div style={{ fontSize:11, fontWeight:600, opacity:0.7, marginTop:2 }}>Top pronostiqueurs</div>
