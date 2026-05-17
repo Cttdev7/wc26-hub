@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react'
 import type { Profile } from '@/lib/db-types'
 import {
-  TEAMS, MATCHES, FEATURED, FEATURED_PULSE, ANALYSES, TEAM_STATS, LINEUPS, PREDICTORS,
+  TEAMS, MATCHES, FEATURED, FEATURED_PULSE, ANALYSES, TEAM_STATS, LINEUPS,
   CALENDAR, STAGE_INFO, TZ_LABEL, toParis,
 } from './data'
 import { Flag, TeamBadge, StatRow, FormDots, Pitch, ImagePlaceholder, PALETTE } from './ui-primitives'
@@ -413,49 +413,65 @@ function BenchList({ title, coach, bench }: { title: string; coach: string; benc
   )
 }
 
-export function PredictionsView({ onOpenMatch, profile }: { onOpenMatch: (id: string) => void; profile?: Profile | null }) {
+// Pseudo-stable avatar color per Supabase user id (no need to round-trip)
+const LB_AVATARS = ['#FF0080', '#0033FF', '#C8FF00', '#6B2FB5', '#E10600', '#FF6E00', '#0A0A0A', '#FFD400']
+const avatarFor = (id: string) => {
+  let h = 0; for (let i=0; i<id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0
+  return LB_AVATARS[h % LB_AVATARS.length]
+}
+
+export function PredictionsView({
+  onOpenMatch, onOpenLeaderboard, profile,
+}: { onOpenMatch: (id: string) => void; onOpenLeaderboard: () => void; profile?: Profile | null }) {
+  type LbRow = { id: string; pseudo: string; total_points: number; total_predictions: number; rang: number }
+  const [top, setTop] = useState<LbRow[]>([])
+  useEffect(() => {
+    fetch('/api/leaderboard?limit=10').then(r => r.ok ? r.json() : { leaderboard: [] })
+      .then((d: { leaderboard: LbRow[] }) => setTop(d.leaderboard ?? []))
+      .catch(() => {})
+  }, [])
+
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'40px 32px 64px' }}>
       <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', marginBottom:24, gap:24 }}>
         <div>
-          <h1 className="display" style={{ fontSize:64, margin:'0 0 8px' }}>Paris<br/>communautaires</h1>
+          <h1 className="display" style={{ fontSize:64, margin:'0 0 8px' }}>Pronostics<br/>communautaires</h1>
           <p style={{ fontSize:15, color:'var(--muted)', maxWidth:520, lineHeight:1.4 }}>
-            Pas d&apos;argent réel. Tu reçois 1000 points à l&apos;inscription, tu pronostiques chaque match, tu grimpes au classement, tu débloques des badges. La communauté vote sur ses propres odds.
+            1 000 pts offerts à l&apos;inscription. <strong style={{ color:'var(--ink)' }}>Score exact</strong> = 5 pts ·
+            <strong style={{ color:'var(--ink)' }}> Bon vainqueur</strong> = 3 pts · Faux = 0 pt.
           </p>
         </div>
         <div style={{ display:'flex', gap:14 }}>
           <BigStat label="Mes points" value={profile ? profile.total_points.toLocaleString('fr-FR') : '—'} color={PALETTE.lime}/>
-          <BigStat label="Précision" value="62%" color={PALETTE.blue}/>
-          <BigStat label="Série" value="3 🔥" color={PALETTE.magenta}/>
         </div>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 360px', gap:24 }}>
         <div>
-          <h2 className="display" style={{ fontSize:24, margin:'0 0 14px' }}>Marchés ouverts</h2>
+          <h2 className="display" style={{ fontSize:24, margin:'0 0 14px' }}>Matchs à pronostiquer</h2>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
             {MATCHES.map((m, i) => {
               const h = teamByCode(m.home), a = teamByCode(m.away)
               const accent = [PALETTE.red, PALETTE.purple, PALETTE.blue, PALETTE.magenta, PALETTE.lime, PALETTE.orange][i%6]
               return (
                 <div key={m.id} className="card" style={{ padding:18, display:'grid', gridTemplateColumns:'1fr auto', gap:18, alignItems:'center' }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'auto 1fr 1fr 1fr', alignItems:'center', gap:14 }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:10, minWidth:200 }}>
-                      <div style={{ width:8, height:32, background:accent, borderRadius:4 }}/>
-                      <div>
-                        <div style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.08em' }}>{m.stage}</div>
-                        <div style={{ fontSize:13, fontWeight:800, marginTop:2 }}>{h.code} vs {a.code}</div>
-                        <div style={{ fontSize:10, fontWeight:600, color:'var(--muted)', marginTop:1 }}>{m.date} · {m.time}</div>
+                  <div style={{ display:'flex', alignItems:'center', gap:16, minWidth:0 }}>
+                    <div style={{ width:8, height:48, background:accent, borderRadius:4, flexShrink:0 }}/>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.08em' }}>{m.stage}</div>
+                      <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:4 }}>
+                        <Flag team={h} w={28} h={18}/>
+                        <span className="display" style={{ fontSize:18 }}>{h.code}</span>
+                        <span style={{ fontSize:12, fontWeight:700, color:'var(--muted)' }}>vs</span>
+                        <span className="display" style={{ fontSize:18 }}>{a.code}</span>
+                        <Flag team={a} w={28} h={18}/>
                       </div>
+                      <div style={{ fontSize:10, fontWeight:600, color:'var(--muted)', marginTop:4 }}>{m.date} · {m.time}</div>
                     </div>
-                    {([['1 · '+h.code, m.odds.home],['NUL', m.odds.draw],['2 · '+a.code, m.odds.away]] as Array<[string, number]>).map(([lbl, o], j) => (
-                      <button key={j} onClick={() => onOpenMatch(m.id)} className="pill-btn" style={{ justifyContent:'space-between', padding:'10px 14px', fontSize:12 }}>
-                        <span style={{ fontWeight:700 }}>{lbl}</span>
-                        <span className="mono" style={{ fontWeight:800 }}>{o.toFixed(2)}</span>
-                      </button>
-                    ))}
                   </div>
-                  <button onClick={() => onOpenMatch(m.id)} style={{ background:'transparent', border:'none', fontSize:12, fontWeight:800, letterSpacing:'0.06em', color: accent }}>OUVRIR →</button>
+                  <button onClick={() => onOpenMatch(m.id)} className="pill-btn solid" style={{ padding:'10px 18px', fontSize:12, whiteSpace:'nowrap' }}>
+                    Pronostiquer →
+                  </button>
                 </div>
               )
             })}
@@ -465,27 +481,31 @@ export function PredictionsView({ onOpenMatch, profile }: { onOpenMatch: (id: st
         <div className="card" style={{ padding:0, overflow:'hidden', height:'fit-content' }}>
           <div style={{ padding:'18px 20px', background: PALETTE.ink, color:'#FFFFFF' }}>
             <div className="display" style={{ fontSize:22 }}>🏆 Classement</div>
-            <div style={{ fontSize:11, fontWeight:600, opacity:0.7, marginTop:2 }}>Top pronostiqueurs · cette semaine</div>
+            <div style={{ fontSize:11, fontWeight:600, opacity:0.7, marginTop:2 }}>Top pronostiqueurs</div>
           </div>
           <div>
-            {PREDICTORS.map((p, i) => (
-              <div key={i} style={{
+            {top.length === 0 ? (
+              <div style={{ padding:'24px 18px', textAlign:'center', color:'var(--muted)', fontSize:12 }}>
+                Aucun pronostiqueur encore. <strong style={{ color:'var(--ink)' }}>Sois le premier !</strong>
+              </div>
+            ) : top.map((p, i) => (
+              <div key={p.id} style={{
                 display:'grid', gridTemplateColumns:'28px 28px 1fr auto', alignItems:'center', gap:10,
-                padding:'12px 18px', borderBottom: i<PREDICTORS.length-1 ? '1px solid var(--line)' : 'none',
+                padding:'12px 18px', borderBottom: i<top.length-1 ? '1px solid var(--line)' : 'none',
                 background: i<3 ? 'rgba(200,255,0,0.07)' : 'transparent',
               }}>
-                <span className="display mono" style={{ fontSize:14, color: i===0 ? PALETTE.red : i<3 ? PALETTE.ink : 'var(--muted)' }}>{i+1}</span>
-                <div style={{ width:24, height:24, borderRadius:'50%', background:p.avatar, border:'1.5px solid var(--ink)' }}/>
+                <span className="display mono" style={{ fontSize:14, color: i===0 ? PALETTE.red : i<3 ? PALETTE.ink : 'var(--muted)' }}>{p.rang}</span>
+                <div style={{ width:24, height:24, borderRadius:'50%', background: avatarFor(p.id), border:'1.5px solid var(--ink)' }}/>
                 <div>
-                  <div style={{ fontSize:12, fontWeight:800 }}>{p.name}</div>
-                  <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, marginTop:1 }}>{p.accuracy}% · série {p.streak}</div>
+                  <div style={{ fontSize:12, fontWeight:800 }}>@{p.pseudo}</div>
+                  <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, marginTop:1 }}>{p.total_predictions} pronostic{p.total_predictions>1?'s':''}</div>
                 </div>
-                <span className="mono" style={{ fontSize:13, fontWeight:800 }}>{p.pts.toLocaleString('fr-FR')}</span>
+                <span className="mono" style={{ fontSize:13, fontWeight:800 }}>{p.total_points.toLocaleString('fr-FR')}</span>
               </div>
             ))}
           </div>
           <div style={{ padding:14, borderTop:'1.5px solid var(--ink)' }}>
-            <button className="pill-btn" style={{ width:'100%', justifyContent:'center' }}>Voir tout le classement →</button>
+            <button onClick={onOpenLeaderboard} className="pill-btn" style={{ width:'100%', justifyContent:'center' }}>Voir tout le classement →</button>
           </div>
         </div>
       </div>

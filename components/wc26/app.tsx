@@ -15,16 +15,18 @@ import { FavoritesSection, NewsSection } from './home-sections'
 import { AuthView } from './auth-view'
 
 // Heavy views — loaded on demand only when the user navigates to them
-const TeamsView       = dynamic(() => import('./main-views').then(m => ({ default: m.TeamsView })))
-const MatchView       = dynamic(() => import('./main-views').then(m => ({ default: m.MatchView })))
-const PredictionsView = dynamic(() => import('./main-views').then(m => ({ default: m.PredictionsView })))
-const TeamDetailView  = dynamic(() => import('./team-detail').then(m => ({ default: m.TeamDetailView })))
-const ProfileView     = dynamic(() => import('./team-detail').then(m => ({ default: m.ProfileView })))
-const CalendarView    = dynamic(() => import('./calendar-view').then(m => ({ default: m.CalendarView })))
-const GroupsView      = dynamic(() => import('./groups-view').then(m => ({ default: m.GroupsView })))
-const LiveView        = dynamic(() => import('./live-view').then(m => ({ default: m.LiveView })))
+const TeamsView          = dynamic(() => import('./main-views').then(m => ({ default: m.TeamsView })))
+const MatchView          = dynamic(() => import('./main-views').then(m => ({ default: m.MatchView })))
+const PredictionsView    = dynamic(() => import('./main-views').then(m => ({ default: m.PredictionsView })))
+const TeamDetailView     = dynamic(() => import('./team-detail').then(m => ({ default: m.TeamDetailView })))
+const ProfileView        = dynamic(() => import('./team-detail').then(m => ({ default: m.ProfileView })))
+const CalendarView       = dynamic(() => import('./calendar-view').then(m => ({ default: m.CalendarView })))
+const GroupsView         = dynamic(() => import('./groups-view').then(m => ({ default: m.GroupsView })))
+const LiveView           = dynamic(() => import('./live-view').then(m => ({ default: m.LiveView })))
+const PredictionFormView = dynamic(() => import('./prediction-view').then(m => ({ default: m.PredictionFormView })))
+const LeaderboardView    = dynamic(() => import('./leaderboard-view').then(m => ({ default: m.LeaderboardView })))
 
-type View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile' | 'auth'
+type View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile' | 'auth' | 'prediction' | 'leaderboard'
 
 export default function App() {
   const [view, setView] = useState<View>('home')
@@ -60,6 +62,11 @@ export default function App() {
 
   const openMatch = (id: string) => { setActiveMatch(id); setView('match'); window.scrollTo(0,0) }
   const openTeam  = (code: string) => { setActiveTeam(code); setView('team'); window.scrollTo(0,0) }
+  const openPrediction = (id: string) => {
+    setActiveMatch(id)
+    setView(user ? 'prediction' : 'auth')
+    window.scrollTo(0,0)
+  }
   const signOut = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
@@ -88,6 +95,7 @@ export default function App() {
           <NewsSection/>
           <AnalysesGrid/>
           <CommunityCallout onJoin={() => setView(user ? 'predictions' : 'auth')}/>
+
         </>
       )}
       {view==='teams' && <TeamsView onOpenTeam={openTeam}/>}
@@ -96,7 +104,9 @@ export default function App() {
       {view==='calendar' && <CalendarView onOpenMatch={openMatch}/>}
       {view==='groups' && <GroupsView onOpenTeam={openTeam} onOpenMatch={openMatch}/>}
       {view==='live' && <LiveView onOpenTeam={openTeam}/>}
-      {view==='predictions' && <PredictionsView onOpenMatch={openMatch} profile={profile}/>}
+      {view==='predictions' && <PredictionsView onOpenMatch={openPrediction} onOpenLeaderboard={() => { setView('leaderboard'); window.scrollTo(0,0) }} profile={profile}/>}
+      {view==='prediction' && <PredictionFormView matchId={activeMatch} onBack={() => setView('predictions')} user={user}/>}
+      {view==='leaderboard' && <LeaderboardView onBack={() => setView('predictions')}/>}
       {view==='profile' && <ProfileView profile={profile} user={user}/>}
       {view==='auth' && <AuthView onBack={() => setView('home')}/>}
 

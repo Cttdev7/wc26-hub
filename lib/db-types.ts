@@ -8,16 +8,25 @@ export type Profile = {
   created_at: string
 }
 
-export type Bet = {
+export type Prediction = {
   id: string
   user_id: string
   match_id: string
   pick: 'home' | 'draw' | 'away'
-  stake: number
-  odds: number
+  score_home: number | null
+  score_away: number | null
   status: 'pending' | 'won' | 'lost' | 'cancelled'
-  payout: number | null
   points_earned: number
   scored: boolean
   created_at: string
+}
+
+export type LeaderboardRow = {
+  id: string
+  pseudo: string
+  total_points: number
+  total_predictions: number
+  exact_scores: number
+  correct_outcomes: number
+  rang: number
 }
