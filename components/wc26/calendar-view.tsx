@@ -95,7 +95,7 @@ export function CalendarView({ onOpenMatch }: { onOpenMatch: (id: string) => voi
     ['FINAL',  'Finales',        '#C8FF00'],
   ]
 
-  const groups = ['A','B','C','D','E','F','G','H']
+  const groups = ['A','B','C','D','E','F','G','H','I','J','K','L']
   const teamsList = TEAMS
 
   const total = all.length

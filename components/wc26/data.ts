@@ -31,69 +31,82 @@ export type Match = {
 }
 
 const BASE_TEAMS: Team[] = [
-  { code:'FRA', name:'France',     color:'#0033FF', flag:['#0033FF','#FFFFFF','#E10600'], group:'C', rank: 2, form:['W','W','D','W','W'] },
-  { code:'BRA', name:'Brazil',     color:'#FFD400', flag:['#009C3B','#FFD400','#002776'], group:'F', rank: 4, form:['W','D','W','W','L'] },
-  { code:'ARG', name:'Argentina',  color:'#75AADB', flag:['#75AADB','#FFFFFF','#75AADB'], group:'A', rank: 1, form:['W','W','W','D','W'] },
-  { code:'POR', name:'Portugal',   color:'#006B3F', flag:['#006B3F','#DA291C'], group:'H', rank: 6, form:['W','L','W','W','D'] },
-  { code:'ESP', name:'Spain',      color:'#C60B1E', flag:['#C60B1E','#FFC400','#C60B1E'], group:'B', rank: 3, form:['W','W','W','W','W'] },
-  { code:'ENG', name:'England',    color:'#E10600', flag:['#FFFFFF','#E10600'], group:'D', rank: 5, form:['W','D','W','L','W'] },
-  { code:'GER', name:'Germany',    color:'#0A0A0A', flag:['#0A0A0A','#E10600','#FFD400'], group:'E', rank: 8, form:['D','W','L','W','W'] },
-  { code:'NED', name:'Netherlands',color:'#FF6E00', flag:['#AE1C28','#FFFFFF','#21468B'], group:'G', rank: 7, form:['W','W','D','W','L'] },
-  { code:'MEX', name:'Mexico',     color:'#006847', flag:['#006847','#FFFFFF','#CE1126'], group:'A', rank: 12, form:['W','L','W','D','W'] },
-  { code:'USA', name:'USA',        color:'#0033FF', flag:['#B22234','#FFFFFF','#3C3B6E'], group:'A', rank: 14, form:['D','W','W','L','W'] },
-  { code:'CAN', name:'Canada',     color:'#E10600', flag:['#E10600','#FFFFFF','#E10600'], group:'B', rank: 22, form:['L','W','D','W','L'] },
-  { code:'JPN', name:'Japan',      color:'#BC002D', flag:['#FFFFFF','#BC002D','#FFFFFF'], group:'D', rank: 15, form:['W','W','W','D','W'] },
+  { code:'FRA', name:'France',      color:'#0033FF', flag:['#0033FF','#FFFFFF','#E10600'], group:'I', rank: 2, form:['W','W','D','W','W'] },
+  { code:'BRA', name:'Brazil',      color:'#FFD400', flag:['#009C3B','#FFD400','#002776'], group:'C', rank: 5, form:['W','D','W','W','L'] },
+  { code:'ARG', name:'Argentina',   color:'#75AADB', flag:['#75AADB','#FFFFFF','#75AADB'], group:'J', rank: 1, form:['W','W','W','D','W'] },
+  { code:'POR', name:'Portugal',    color:'#006B3F', flag:['#006B3F','#DA291C'], group:'K', rank: 6, form:['W','L','W','W','D'] },
+  { code:'ESP', name:'Spain',       color:'#C60B1E', flag:['#C60B1E','#FFC400','#C60B1E'], group:'H', rank: 3, form:['W','W','W','W','W'] },
+  { code:'ENG', name:'England',     color:'#E10600', flag:['#FFFFFF','#E10600'], group:'L', rank: 4, form:['W','D','W','L','W'] },
+  { code:'GER', name:'Germany',     color:'#0A0A0A', flag:['#0A0A0A','#E10600','#FFD400'], group:'E', rank: 8, form:['D','W','L','W','W'] },
+  { code:'NED', name:'Netherlands', color:'#FF6E00', flag:['#AE1C28','#FFFFFF','#21468B'], group:'F', rank: 7, form:['W','W','D','W','L'] },
+  { code:'MEX', name:'Mexico',      color:'#006847', flag:['#006847','#FFFFFF','#CE1126'], group:'A', rank:12, form:['W','L','W','D','W'] },
+  { code:'USA', name:'USA',         color:'#0033FF', flag:['#B22234','#FFFFFF','#3C3B6E'], group:'D', rank:14, form:['D','W','W','L','W'] },
+  { code:'CAN', name:'Canada',      color:'#E10600', flag:['#E10600','#FFFFFF','#E10600'], group:'B', rank:17, form:['L','W','D','W','L'] },
+  { code:'JPN', name:'Japan',       color:'#BC002D', flag:['#FFFFFF','#BC002D','#FFFFFF'], group:'F', rank:23, form:['W','W','W','D','W'] },
 ]
 
+// ── Vrais groupes du tirage au sort FIFA du 5 déc. 2025 ────────────────────
 const TEAMS_EXTRA: Team[] = [
-  { code:'KSA', name:'Saudi Arabia', color:'#006C35', flag:['#006C35','#FFFFFF','#006C35'], group:'A', rank:58, form:['L','D','W','L','L'] },
-  { code:'NZL', name:'New Zealand',  color:'#000000', flag:['#FFFFFF','#000000','#FFFFFF'], group:'A', rank:103, form:['L','W','L','D','L'] },
-  { code:'BEL', name:'Belgium',      color:'#FFD90C', flag:['#000000','#FAE042','#ED2939'], group:'B', rank:11, form:['W','D','W','W','D'] },
-  { code:'AUS', name:'Australia',    color:'#00843D', flag:['#0B3E91','#FFFFFF','#E4002B'], group:'B', rank:24, form:['W','L','D','W','D'] },
-  { code:'NOR', name:'Norway',       color:'#EF2B2D', flag:['#EF2B2D','#FFFFFF','#002868'], group:'C', rank:18, form:['W','W','W','D','W'] },
-  { code:'TUN', name:'Tunisia',      color:'#E70013', flag:['#E70013','#FFFFFF','#E70013'], group:'C', rank:42, form:['L','D','W','L','D'] },
-  { code:'CRO', name:'Croatia',      color:'#171796', flag:['#FF0000','#FFFFFF','#171796'], group:'D', rank:9, form:['D','W','W','L','D'] },
-  { code:'IRN', name:'Iran',         color:'#239F40', flag:['#239F40','#FFFFFF','#DA0000'], group:'D', rank:21, form:['W','L','W','D','W'] },
-  { code:'SEN', name:'Senegal',      color:'#00853F', flag:['#00853F','#FDEF42','#E31B23'], group:'E', rank:19, form:['W','W','D','W','L'] },
-  { code:'ECU', name:'Ecuador',      color:'#FFD100', flag:['#FFD100','#0072CE','#EF3340'], group:'E', rank:32, form:['D','W','L','W','D'] },
-  { code:'PAN', name:'Panama',       color:'#005AA7', flag:['#005AA7','#FFFFFF','#D21034'], group:'E', rank:38, form:['D','L','W','D','L'] },
-  { code:'KOR', name:'Korea Rep.',   color:'#CD2E3A', flag:['#FFFFFF','#CD2E3A','#0047A0'], group:'F', rank:23, form:['W','W','D','L','W'] },
-  { code:'CMR', name:'Cameroon',     color:'#007A33', flag:['#007A33','#CE1126','#FCD116'], group:'F', rank:51, form:['L','D','W','L','D'] },
-  { code:'PAR', name:'Paraguay',     color:'#D52B1E', flag:['#D52B1E','#FFFFFF','#0038A8'], group:'F', rank:48, form:['D','L','D','W','L'] },
-  { code:'SUI', name:'Switzerland',  color:'#D52B1E', flag:['#D52B1E','#FFFFFF','#D52B1E'], group:'G', rank:17, form:['W','D','W','L','W'] },
-  { code:'COL', name:'Colombia',     color:'#FCD116', flag:['#FCD116','#003893','#CE1126'], group:'G', rank:13, form:['W','W','D','W','W'] },
-  { code:'GHA', name:'Ghana',        color:'#FCD116', flag:['#CE1126','#FCD116','#006B3F'], group:'G', rank:73, form:['L','D','L','W','D'] },
-  { code:'URU', name:'Uruguay',      color:'#0038A8', flag:['#FFFFFF','#0038A8','#FFFFFF'], group:'H', rank:14, form:['W','D','W','W','L'] },
-  { code:'MAR', name:'Morocco',      color:'#C1272D', flag:['#C1272D','#006233','#C1272D'], group:'H', rank:12, form:['W','W','W','D','W'] },
-  { code:'EGY', name:'Egypt',        color:'#CE1126', flag:['#CE1126','#FFFFFF','#000000'], group:'H', rank:35, form:['D','L','W','L','D'] },
-  { code:'ITA', name:'Italy',        color:'#0066CC', flag:['#008C45','#FFFFFF','#CD212A'], group:'I', rank:10, form:['W','W','D','W','D'] },
-  { code:'SCO', name:'Scotland',     color:'#0065BD', flag:['#0065BD','#FFFFFF','#0065BD'], group:'I', rank:34, form:['W','D','L','W','D'] },
-  { code:'NGA', name:'Nigeria',      color:'#008753', flag:['#008753','#FFFFFF','#008753'], group:'I', rank:40, form:['L','W','W','D','L'] },
-  { code:'JAM', name:'Jamaica',      color:'#FFD100', flag:['#000000','#FFD100','#009B3A'], group:'I', rank:55, form:['L','L','D','W','L'] },
-  { code:'DEN', name:'Denmark',      color:'#C8102E', flag:['#C8102E','#FFFFFF','#C8102E'], group:'J', rank:15, form:['W','D','W','W','D'] },
-  { code:'POL', name:'Poland',       color:'#DC143C', flag:['#FFFFFF','#DC143C'], group:'J', rank:28, form:['D','L','W','D','L'] },
-  { code:'CIV', name:'Côte d’Ivoire',color:'#FF8200', flag:['#FF8200','#FFFFFF','#009E60'], group:'J', rank:39, form:['W','W','D','L','W'] },
-  { code:'CRC', name:'Costa Rica',   color:'#002B7F', flag:['#002B7F','#FFFFFF','#CE1126'], group:'J', rank:50, form:['L','D','L','D','W'] },
-  { code:'TUR', name:'Türkiye',      color:'#E30A17', flag:['#E30A17','#FFFFFF','#E30A17'], group:'K', rank:25, form:['W','D','W','L','W'] },
-  { code:'AUT', name:'Austria',      color:'#ED2939', flag:['#ED2939','#FFFFFF','#ED2939'], group:'K', rank:26, form:['D','W','D','W','L'] },
-  { code:'CHI', name:'Chile',        color:'#D52B1E', flag:['#FFFFFF','#0033A0','#D52B1E'], group:'K', rank:43, form:['L','D','W','L','D'] },
-  { code:'QAT', name:'Qatar',        color:'#8A1538', flag:['#8A1538','#FFFFFF','#8A1538'], group:'K', rank:60, form:['L','L','D','L','W'] },
-  { code:'SUE', name:'Sweden',       color:'#006AA7', flag:['#006AA7','#FECC00','#006AA7'], group:'L', rank:27, form:['W','D','W','D','W'] },
-  { code:'PER', name:'Peru',         color:'#D91023', flag:['#D91023','#FFFFFF','#D91023'], group:'L', rank:33, form:['D','L','W','D','L'] },
-  { code:'ALG', name:'Algeria',      color:'#006233', flag:['#006233','#FFFFFF','#D21034'], group:'L', rank:37, form:['W','D','L','W','D'] },
-  { code:'HON', name:'Honduras',     color:'#0073CF', flag:['#0073CF','#FFFFFF','#0073CF'], group:'L', rank:78, form:['L','D','L','W','L'] },
+  // ── Groupe A : MEX · KOR · RSA · CZE ──
+  { code:'KOR', name:'Korea Rep.',      color:'#CD2E3A', flag:['#FFFFFF','#CD2E3A','#0047A0'], group:'A', rank:23, form:['W','W','D','L','W'] },
+  { code:'RSA', name:'South Africa',    color:'#007A4D', flag:['#007A4D','#FFB612','#000000'], group:'A', rank:57, form:['W','D','L','D','W'] },
+  { code:'CZE', name:'Czech Republic',  color:'#D7141A', flag:['#FFFFFF','#D7141A','#11457E'], group:'A', rank:40, form:['D','W','W','L','D'] },
+  // ── Groupe B : CAN · SUI · QAT · BIH ──
+  { code:'SUI', name:'Switzerland',     color:'#D52B1E', flag:['#D52B1E','#FFFFFF','#D52B1E'], group:'B', rank:17, form:['W','D','W','L','W'] },
+  { code:'QAT', name:'Qatar',           color:'#8A1538', flag:['#8A1538','#FFFFFF','#8A1538'], group:'B', rank:58, form:['L','L','D','L','W'] },
+  { code:'BIH', name:'Bosnia-Herzeg.',  color:'#002395', flag:['#002395','#F0CF00','#FFFFFF'], group:'B', rank:62, form:['D','W','L','D','W'] },
+  // ── Groupe C : BRA · MAR · HAI · SCO ──
+  { code:'MAR', name:'Morocco',         color:'#C1272D', flag:['#C1272D','#006233','#C1272D'], group:'C', rank:13, form:['W','W','W','D','W'] },
+  { code:'HAI', name:'Haiti',           color:'#00209F', flag:['#00209F','#D21034','#00209F'], group:'C', rank:91, form:['L','D','L','W','L'] },
+  { code:'SCO', name:'Scotland',        color:'#0065BD', flag:['#0065BD','#FFFFFF','#0065BD'], group:'C', rank:35, form:['W','D','L','W','D'] },
+  // ── Groupe D : USA · TUR · PAR · AUS ──
+  { code:'TUR', name:'Türkiye',         color:'#E30A17', flag:['#E30A17','#FFFFFF','#E30A17'], group:'D', rank:25, form:['W','D','W','L','W'] },
+  { code:'PAR', name:'Paraguay',        color:'#D52B1E', flag:['#D52B1E','#FFFFFF','#0038A8'], group:'D', rank:48, form:['D','L','D','W','L'] },
+  { code:'AUS', name:'Australia',       color:'#00843D', flag:['#0B3E91','#FFFFFF','#E4002B'], group:'D', rank:24, form:['W','L','D','W','D'] },
+  // ── Groupe E : GER · CIV · ECU · CUW ──
+  { code:'CIV', name:"Côte d'Ivoire",   color:'#FF8200', flag:['#FF8200','#FFFFFF','#009E60'], group:'E', rank:39, form:['W','W','D','L','W'] },
+  { code:'ECU', name:'Ecuador',         color:'#FFD100', flag:['#FFD100','#0072CE','#EF3340'], group:'E', rank:32, form:['D','W','L','W','D'] },
+  { code:'CUW', name:'Curaçao',         color:'#002B7F', flag:['#002B7F','#F9E814','#FFFFFF'], group:'E', rank:84, form:['L','W','L','D','L'] },
+  // ── Groupe F : NED · JPN · SUE · TUN ──
+  { code:'SUE', name:'Sweden',          color:'#006AA7', flag:['#006AA7','#FECC00','#006AA7'], group:'F', rank:27, form:['W','D','W','D','W'] },
+  { code:'TUN', name:'Tunisia',         color:'#E70013', flag:['#E70013','#FFFFFF','#E70013'], group:'F', rank:42, form:['L','D','W','L','D'] },
+  // ── Groupe G : BEL · IRN · EGY · NZL ──
+  { code:'BEL', name:'Belgium',         color:'#FFD90C', flag:['#000000','#FAE042','#ED2939'], group:'G', rank:10, form:['W','D','W','W','D'] },
+  { code:'IRN', name:'Iran',            color:'#239F40', flag:['#239F40','#FFFFFF','#DA0000'], group:'G', rank:20, form:['W','L','W','D','W'] },
+  { code:'EGY', name:'Egypt',           color:'#CE1126', flag:['#CE1126','#FFFFFF','#000000'], group:'G', rank:34, form:['D','L','W','L','D'] },
+  { code:'NZL', name:'New Zealand',     color:'#000000', flag:['#FFFFFF','#000000','#FFFFFF'], group:'G', rank:101, form:['L','W','L','D','L'] },
+  // ── Groupe H : ESP · URU · KSA · CPV ──
+  { code:'URU', name:'Uruguay',         color:'#0038A8', flag:['#FFFFFF','#0038A8','#FFFFFF'], group:'H', rank:15, form:['W','D','W','W','L'] },
+  { code:'KSA', name:'Saudi Arabia',    color:'#006C35', flag:['#006C35','#FFFFFF','#006C35'], group:'H', rank:56, form:['L','D','W','L','L'] },
+  { code:'CPV', name:'Cape Verde',      color:'#003893', flag:['#003893','#CF2027','#FECC00'], group:'H', rank:73, form:['W','D','W','L','W'] },
+  // ── Groupe I : FRA · SEN · IRQ · NOR ──
+  { code:'SEN', name:'Senegal',         color:'#00853F', flag:['#00853F','#FDEF42','#E31B23'], group:'I', rank:16, form:['W','W','D','W','L'] },
+  { code:'IRQ', name:'Iraq',            color:'#CE1126', flag:['#CE1126','#FFFFFF','#007A3D'], group:'I', rank:63, form:['W','D','L','W','D'] },
+  { code:'NOR', name:'Norway',          color:'#EF2B2D', flag:['#EF2B2D','#FFFFFF','#002868'], group:'I', rank:18, form:['W','W','W','D','W'] },
+  // ── Groupe J : ARG · ALG · AUT · JOR ──
+  { code:'ALG', name:'Algeria',         color:'#006233', flag:['#006233','#FFFFFF','#D21034'], group:'J', rank:36, form:['W','D','L','W','D'] },
+  { code:'AUT', name:'Austria',         color:'#ED2939', flag:['#ED2939','#FFFFFF','#ED2939'], group:'J', rank:26, form:['D','W','D','W','L'] },
+  { code:'JOR', name:'Jordan',          color:'#007A3D', flag:['#007A3D','#FFFFFF','#CE1126'], group:'J', rank:74, form:['W','L','D','W','D'] },
+  // ── Groupe K : POR · COL · UZB · COD ──
+  { code:'COL', name:'Colombia',        color:'#FCD116', flag:['#FCD116','#003893','#CE1126'], group:'K', rank:11, form:['W','W','D','W','W'] },
+  { code:'UZB', name:'Uzbekistan',      color:'#1EB53A', flag:['#1EB53A','#FFFFFF','#009FCA'], group:'K', rank:68, form:['W','W','D','L','W'] },
+  { code:'COD', name:'Congo DR',        color:'#007FFF', flag:['#007FFF','#CE1126','#F7D900'], group:'K', rank:76, form:['D','W','L','D','W'] },
+  // ── Groupe L : ENG · CRO · PAN · GHA ──
+  { code:'CRO', name:'Croatia',         color:'#171796', flag:['#FF0000','#FFFFFF','#171796'], group:'L', rank: 9, form:['D','W','W','L','D'] },
+  { code:'PAN', name:'Panama',          color:'#005AA7', flag:['#005AA7','#FFFFFF','#D21034'], group:'L', rank:38, form:['D','L','W','D','L'] },
+  { code:'GHA', name:'Ghana',           color:'#FCD116', flag:['#CE1126','#FCD116','#006B3F'], group:'L', rank:72, form:['L','D','L','W','D'] },
 ]
 
-// Group reassignment for the existing 12 teams (from 04-wc26-data-extra.jsx)
+// Groupes officiels du tirage FIFA du 5 décembre 2025
 const GROUP_ASSIGN: Record<string, string> = {
-  ARG:'A', MEX:'A',
-  ESP:'B', CAN:'B',
-  FRA:'C', USA:'C',
-  ENG:'D', JPN:'D',
+  ARG:'J', MEX:'A',
+  ESP:'H', CAN:'B',
+  FRA:'I', USA:'D',
+  ENG:'L', JPN:'F',
   GER:'E',
-  BRA:'F',
-  NED:'G',
-  POR:'H',
+  BRA:'C',
+  NED:'F',
+  POR:'K',
 }
 
 BASE_TEAMS.forEach(t => { if (GROUP_ASSIGN[t.code]) t.group = GROUP_ASSIGN[t.code] })
@@ -145,7 +158,7 @@ const FRA_LINEUP = {
   bench: [
     '21 Lucas Hernández','24 Rayan Cherki','12 Randal Kolo Muani','18 Warren Zaïre-Emery',
     '6 Eduardo Camavinga','3 Lucas Digne','1 Brice Samba','23 Lucas Chevalier',
-    '17 Maxence Lacroix','20 Désiré Doué','9 Marcus Thuram','13 N’Golo Kanté',
+    '17 Maxence Lacroix','20 Désiré Doué','9 Marcus Thuram',"13 N'Golo Kanté",
     '25 Maghnes Akliouche','5 Pierre Kalulu',
   ],
 }
@@ -189,9 +202,9 @@ export const FEATURED_PULSE = { home: 38, draw: 22, away: 40, volume: 14820 }
 
 export const ANALYSES = [
   { tag:'TACTIQUE',   color:'#6B2FB5', title:'Pourquoi le double pivot français va craquer face au pressing brésilien', author:'A. Lasalle', read:'7 min' },
-  { tag:'DATA',       color:'#0033FF', title:'xG cumulé : l’Espagne creuse l’écart, l’Allemagne stagne', author:'M. Ortega', read:'4 min' },
+  { tag:'DATA',       color:'#0033FF', title:"xG cumulé : l'Espagne creuse l'écart, l'Allemagne stagne", author:'M. Ortega', read:'4 min' },
   { tag:'JOUEUR',     color:'#E10600', title:'Endrick, 19 ans : la courbe de progression la plus folle du tournoi', author:'R. Pinto', read:'6 min' },
-  { tag:'COMMUNAUTÉ', color:'#FF0080', title:'Le crowd s’est trompé 64% du temps sur les matchs serrés. Pourquoi ?', author:'Équipe HUB', read:'5 min' },
+  { tag:'COMMUNAUTÉ', color:'#FF0080', title:"Le crowd s'est trompé 64% du temps sur les matchs serrés. Pourquoi ?", author:'Équipe HUB', read:'5 min' },
 ]
 
 export const FAVORITES = [
@@ -206,12 +219,12 @@ export const FAVORITES = [
 ]
 
 export const NEWS = [
-  { id:'n1', tag:'TRANSFERTS', color:'#E10600', title:'Mbappé prolonge avec les Bleus jusqu’en 2030, prime de capitanat record', excerpt:'Le capitaine de l’équipe de France a renouvelé son contrat moral avec la FFF avant l’entrée en lice à Dallas.', time:'il y a 2 h', views:'24.3k', img:'team', team:'FRA' },
-  { id:'n2', tag:'BLESSURE', color:'#FF6E00', title:'Pedri forfait pour le premier tour : un séisme pour l’Espagne', excerpt:'Le milieu du Barça souffre d’une lésion du biceps fémoral. De la Fuente convoque Aleix García en urgence.', time:'il y a 4 h', views:'18.9k', img:'medical', team:'ESP' },
-  { id:'n3', tag:'TACTIQUE', color:'#6B2FB5', title:'Pourquoi Dorival Júnior va titulariser Endrick au lieu de Vini Jr ce soir', excerpt:'La presse brésilienne révèle les choix surprises du sélectionneur avant le choc contre la France.', time:'il y a 6 h', views:'15.2k', img:'tactical', team:'BRA' },
-  { id:'n4', tag:'COULISSES', color:'#FF0080', title:'Ambiance ultra-tendue dans le vestiaire portugais après une dispute Ronaldo-Bruno', excerpt:'Un échange musclé en demi-finale du dernier rassemblement aurait fissuré le groupe avant le tournoi.', time:'il y a 8 h', views:'12.7k', img:'locker', team:'POR' },
-  { id:'n5', tag:'DATA', color:'#0033FF', title:'Les 7 statistiques qui prouvent que l’Argentine est encore plus forte qu’en 2022', excerpt:'xG, pressing, transitions : tout indique que la Albiceleste tient sa meilleure équipe depuis Maradona.', time:'il y a 12 h', views:'11.4k', img:'data', team:'ARG' },
-  { id:'n6', tag:'JEUNE', color:'#C8FF00', title:'Lamine Yamal, 18 ans : portrait du futur Ballon d’Or selon Xavi', excerpt:'L’ailier du Barça est entré dans une dimension nouvelle. Comment la Roja a construit son crack.', time:'hier', views:'10.1k', img:'portrait', team:'ESP' },
+  { id:'n1', tag:'TRANSFERTS', color:'#E10600', title:"Mbappé prolonge avec les Bleus jusqu'en 2030, prime de capitanat record", excerpt:"Le capitaine de l'équipe de France a renouvelé son contrat moral avec la FFF avant l'entrée en lice à Dallas.", time:'il y a 2 h', views:'24.3k', img:'team', team:'FRA' },
+  { id:'n2', tag:'BLESSURE', color:'#FF6E00', title:"Pedri forfait pour le premier tour : un séisme pour l'Espagne", excerpt:"Le milieu du Barça souffre d'une lésion du biceps fémoral. De la Fuente convoque Aleix García en urgence.", time:'il y a 4 h', views:'18.9k', img:'medical', team:'ESP' },
+  { id:'n3', tag:'TACTIQUE', color:'#6B2FB5', title:"Pourquoi Dorival Júnior va titulariser Endrick au lieu de Vini Jr ce soir", excerpt:"La presse brésilienne révèle les choix surprises du sélectionneur avant le choc contre la France.", time:'il y a 6 h', views:'15.2k', img:'tactical', team:'BRA' },
+  { id:'n4', tag:'COULISSES', color:'#FF0080', title:"Ambiance ultra-tendue dans le vestiaire portugais après une dispute Ronaldo-Bruno", excerpt:"Un échange musclé en demi-finale du dernier rassemblement aurait fissuré le groupe avant le tournoi.", time:'il y a 8 h', views:'12.7k', img:'locker', team:'POR' },
+  { id:'n5', tag:'DATA', color:'#0033FF', title:"Les 7 statistiques qui prouvent que l'Argentine est encore plus forte qu'en 2022", excerpt:"xG, pressing, transitions : tout indique que la Albiceleste tient sa meilleure équipe depuis Maradona.", time:'il y a 12 h', views:'11.4k', img:'data', team:'ARG' },
+  { id:'n6', tag:'JEUNE', color:'#C8FF00', title:"Lamine Yamal, 18 ans : portrait du futur Ballon d'Or selon Xavi", excerpt:"L'ailier du Barça est entré dans une dimension nouvelle. Comment la Roja a construit son crack.", time:'hier', views:'10.1k', img:'portrait', team:'ESP' },
 ]
 
 export const MATCH_PROBS: Record<string, any> = {
@@ -258,7 +271,7 @@ export const SQUADS: Record<string, any> = {
       { num: 2, name:'Malo Gusto',      pos:'DEF',age:23, club:'Chelsea',   form:77 },
       { num:14, name:'Adrien Rabiot',   pos:'MID',age:31, club:'Marseille', form:76 },
       { num: 6, name:'Aurélien Tchouaméni', pos:'MID',age:26,club:'Real Madrid',form:60 },
-      { num:13, name:'N’Golo Kanté',pos:'MID',age:35, club:'Al-Ittihad',form:72 },
+      { num:13, name:"N'Golo Kanté",pos:'MID',age:35, club:'Al-Ittihad',form:72 },
       { num:11, name:'Michael Olise',   pos:'MID',age:24, club:'Bayern',    form:89 },
       { num:10, name:'Kylian Mbappé',   pos:'FWD',age:27, club:'Real Madrid',form:92, captain:true },
       { num: 7, name:'Ousmane Dembélé', pos:'FWD',age:28, club:'PSG',       form:85 },
@@ -267,8 +280,8 @@ export const SQUADS: Record<string, any> = {
       { num:24, name:'Rayan Cherki',    pos:'MID',age:22, club:'Man City',  form:88 },
     ],
     news:[
+      { tag:'BLESSURE',  title:"Tchouaméni à l'infirmerie : décision finale demain matin", time:'il y a 5 h' },
       { tag:'EFFECTIF',  title:'Cherki annoncé titulaire surprise face au Brésil', time:'il y a 2 h' },
-      { tag:'BLESSURE',  title:'Tchouaméni à l’infirmerie : décision finale demain matin', time:'il y a 5 h' },
       { tag:'AMBIANCE',  title:'Match de Mölkky improvisé au camp de base, Deschamps approuve', time:'hier' },
     ],
   },
@@ -298,8 +311,8 @@ export const SQUADS: Record<string, any> = {
       { num:19, name:'Antony',        pos:'FWD',age:26, club:'Real Betis',form:74 },
     ],
     news:[
+      { tag:'AMBIANCE', title:"Samba dans le bus de l'équipe avant le départ pour Dallas", time:'il y a 1 j' },
       { tag:'TACTIQUE', title:'Endrick titulaire face à la France, Vini repositionné', time:'il y a 3 h' },
-      { tag:'AMBIANCE', title:'Samba dans le bus de l’équipe avant le départ pour Dallas', time:'il y a 1 j' },
     ],
   },
   ARG: {
@@ -315,7 +328,12 @@ export const SQUADS: Record<string, any> = {
   },
 }
 
-const teamCodes = ['FRA','BRA','ARG','POR','ESP','ENG','GER','NED','MEX','USA','CAN','JPN']
+const teamCodes = [
+  'FRA','BRA','ARG','POR','ESP','ENG','GER','NED','MEX','USA','CAN','JPN',
+  'KOR','RSA','CZE','SUI','QAT','BIH','MAR','HAI','SCO','TUR','PAR','AUS',
+  'CIV','ECU','CUW','SUE','TUN','BEL','IRN','EGY','NZL','URU','KSA','CPV',
+  'SEN','IRQ','NOR','ALG','AUT','JOR','COL','UZB','COD','CRO','PAN','GHA',
+]
 teamCodes.forEach(c => {
   if (!SQUADS[c]) {
     SQUADS[c] = {
@@ -363,7 +381,7 @@ export const VENUES: Record<string, { city: string; stadium: string }> = {
   PHI: { city:'Philadelphia',stadium:'Lincoln Field' },
   MIA: { city:'Miami',       stadium:'Hard Rock Stadium' },
   SEA: { city:'Seattle',     stadium:'Lumen Field' },
-  SF:  { city:'San Francisco',stadium:'Levi’s Stadium' },
+  SF:  { city:'San Francisco',stadium:"Levi's Stadium" },
   BOS: { city:'Boston',      stadium:'Gillette Stadium' },
   TOR: { city:'Toronto',     stadium:'BMO Field' },
   VAN: { city:'Vancouver',   stadium:'BC Place' },
@@ -415,48 +433,147 @@ export function toParis(localTime: string, vKey?: string) {
 }
 
 export const CALENDAR: Match[] = [
-  fx('c1',  '2026-06-11','20:00','MEX','JPN','MD1','A','MEX'),
-  fx('c2',  '2026-06-12','18:00','CAN','GER','MD1','B','TOR'),
-  fx('c3',  '2026-06-12','21:00','USA','NED','MD1','C','LA'),
-  fx('c4',  '2026-06-13','18:00','ESP','POR','MD1','D','NY'),
-  fx('c5',  '2026-06-14','15:00','ARG','JPN','MD1','A','LA'),
-  fx('c6',  '2026-06-15','21:00','ENG','ARG','MD1','E','MIA'),
-  fx('c7',  '2026-06-15','18:00','GER','BRA','MD1','F','PHI'),
-  fx('m1', '2026-06-18','21:00','POR','ARG','MD2','A','LA',  null,'scheduled',{home:3.2,draw:3.4,away:2.1}),
-  fx('m2', '2026-06-19','18:00','BRA','FRA','MD1','F','DAL', null,'scheduled',{home:2.6,draw:3.3,away:2.7}),
-  fx('m3', '2026-06-20','15:00','ESP','GER','MD2','B','NY',  null,'scheduled',{home:2.1,draw:3.4,away:3.3}),
-  fx('m4', '2026-06-21','21:00','ENG','JPN','MD1','D','ATL', null,'scheduled',{home:1.5,draw:4.2,away:5.8}),
-  fx('m5', '2026-06-22','18:00','NED','MEX','MD1','G','TOR', null,'scheduled',{home:1.9,draw:3.5,away:4.0}),
-  fx('m6', '2026-06-23','21:00','USA','CAN','MD3','A','VAN', null,'scheduled',{home:2.0,draw:3.4,away:3.7}),
-  fx('c10','2026-06-23','18:00','ESP','MEX','MD2','D','HOU',  null,'scheduled',{home:1.9,draw:3.4,away:4.2}),
-  fx('c11','2026-06-23','21:00','POR','ENG','MD2','D','DAL',  null,'scheduled',{home:3.0,draw:3.3,away:2.4}),
-  fx('c12','2026-06-24','15:00','ARG','MEX','MD2','A','MEX',  null,'scheduled',{home:1.7,draw:3.6,away:5.0}),
-  fx('c13','2026-06-24','18:00','BRA','CAN','MD2','F','ATL',  null,'scheduled',{home:1.4,draw:4.4,away:7.5}),
-  fx('c14','2026-06-25','21:00','FRA','USA','MD2','C','SEA',  null,'scheduled',{home:1.6,draw:3.8,away:5.5}),
-  fx('c15','2026-06-25','18:00','GER','JPN','MD2','E','KC',   null,'scheduled',{home:1.8,draw:3.5,away:4.4}),
-  fx('c16','2026-06-25','21:00','NED','POR','MD2','G','BOS',  null,'scheduled',{home:2.3,draw:3.4,away:3.1}),
-  fx('c20','2026-06-27','21:00','FRA','MEX','MD3','C','MIA',  null,'scheduled',{home:1.6,draw:3.9,away:5.4}),
-  fx('c21','2026-06-27','21:00','BRA','ARG','MD3','F','NY',   null,'scheduled',{home:2.7,draw:3.3,away:2.6}),
-  fx('c22','2026-06-28','18:00','ENG','GER','MD3','E','PHI',  null,'scheduled',{home:2.5,draw:3.3,away:2.8}),
-  fx('c23','2026-06-28','15:00','ESP','NED','MD3','B','GDL',  null,'scheduled',{home:2.0,draw:3.4,away:3.7}),
-  fx('c30','2026-07-01','18:00','ESP','JPN','R32','-','HOU',  null,'scheduled',{home:1.5,draw:4.0,away:6.5}),
-  fx('c31','2026-07-01','21:00','FRA','POR','R32','-','MTY',  null,'scheduled',{home:2.1,draw:3.4,away:3.4}),
-  fx('c32','2026-07-02','18:00','BRA','USA','R32','-','BOS',  null,'scheduled',{home:1.4,draw:4.4,away:7.0}),
-  fx('c33','2026-07-02','21:00','ARG','NED','R32','-','DAL',  null,'scheduled',{home:2.0,draw:3.3,away:3.7}),
-  fx('c34','2026-07-03','18:00','ENG','CAN','R32','-','KC',   null,'scheduled',{home:1.4,draw:4.5,away:7.5}),
-  fx('c35','2026-07-03','21:00','GER','MEX','R32','-','MEX',  null,'scheduled',{home:2.3,draw:3.4,away:3.1}),
-  fx('c40','2026-07-06','18:00','ESP','FRA','R16','-','NY',   null,'scheduled',{home:2.4,draw:3.3,away:2.9}),
-  fx('c41','2026-07-06','21:00','BRA','ARG','R16','-','LA',   null,'scheduled',{home:2.6,draw:3.3,away:2.7}),
-  fx('c42','2026-07-07','18:00','ENG','GER','R16','-','MIA',  null,'scheduled',{home:2.5,draw:3.3,away:2.8}),
-  fx('c43','2026-07-07','21:00','POR','NED','R16','-','SF',   null,'scheduled',{home:2.4,draw:3.3,away:2.9}),
-  fx('c50','2026-07-10','18:00','FRA','ARG','QF','-','DAL',   null,'scheduled',{home:2.7,draw:3.2,away:2.6}),
-  fx('c51','2026-07-10','21:00','BRA','GER','QF','-','PHI',   null,'scheduled',{home:2.3,draw:3.3,away:3.1}),
-  fx('c52','2026-07-11','18:00','ESP','ENG','QF','-','HOU',   null,'scheduled',{home:2.2,draw:3.3,away:3.3}),
-  fx('c53','2026-07-11','21:00','POR','NED','QF','-','ATL',   null,'scheduled',{home:2.5,draw:3.3,away:2.8}),
-  fx('c60','2026-07-14','21:00','FRA','BRA','SF','-','NY',    null,'scheduled',{home:2.6,draw:3.3,away:2.7}),
-  fx('c61','2026-07-15','21:00','ESP','ARG','SF','-','LA',    null,'scheduled',{home:2.4,draw:3.3,away:2.9}),
-  fx('c70','2026-07-18','18:00','BRA','ESP','3RD','-','MIA',  null,'scheduled',{home:2.6,draw:3.3,away:2.7}),
-  fx('c80','2026-07-19','21:00','FRA','ARG','F','-','NY',     null,'scheduled',{home:2.7,draw:3.2,away:2.6}),
+  // ── PHASE DE GROUPES ─────────────────────────────────────────────────────
+
+  // GROUPE A : MEX · KOR · RSA · CZE
+  fx('gA1','2026-06-11','21:00','MEX','KOR','MD1','A','MEX'),  // Match d'ouverture
+  fx('gA2','2026-06-11','18:00','RSA','CZE','MD1','A','DAL'),
+  fx('gA3','2026-06-18','18:00','MEX','RSA','MD2','A','GDL'),
+  fx('gA4','2026-06-18','21:00','KOR','CZE','MD2','A','LA'),
+  fx('gA5','2026-06-24','15:00','MEX','CZE','MD3','A','MTY'),  // simultané
+  fx('gA6','2026-06-24','15:00','KOR','RSA','MD3','A','SF'),   // simultané
+
+  // GROUPE B : CAN · SUI · QAT · BIH
+  fx('gB1','2026-06-12','15:00','CAN','BIH','MD1','B','TOR'),
+  fx('gB2','2026-06-12','18:00','SUI','QAT','MD1','B','HOU'),
+  fx('gB3','2026-06-18','15:00','CAN','QAT','MD2','B','VAN'),
+  fx('gB4','2026-06-18','18:00','SUI','BIH','MD2','B','PHI'),
+  fx('gB5','2026-06-24','18:00','CAN','SUI','MD3','B','TOR'),  // simultané
+  fx('gB6','2026-06-24','18:00','BIH','QAT','MD3','B','BOS'),  // simultané
+
+  // GROUPE C : BRA · MAR · HAI · SCO
+  fx('gC1','2026-06-12','21:00','BRA','HAI','MD1','C','MIA'),
+  fx('gC2','2026-06-12','18:00','MAR','SCO','MD1','C','ATL'),
+  fx('gC3','2026-06-19','15:00','BRA','MAR','MD2','C','DAL'),
+  fx('gC4','2026-06-19','18:00','SCO','HAI','MD2','C','KC'),
+  fx('gC5','2026-06-24','21:00','BRA','SCO','MD3','C','NY'),   // simultané
+  fx('gC6','2026-06-24','21:00','MAR','HAI','MD3','C','SEA'),  // simultané
+
+  // GROUPE D : USA · TUR · PAR · AUS
+  fx('gD1','2026-06-13','21:00','USA','TUR','MD1','D','LA'),
+  fx('gD2','2026-06-13','18:00','PAR','AUS','MD1','D','MIA'),
+  fx('gD3','2026-06-19','21:00','USA','PAR','MD2','D','ATL'),
+  fx('gD4','2026-06-19','18:00','TUR','AUS','MD2','D','SF'),
+  fx('gD5','2026-06-25','15:00','USA','AUS','MD3','D','KC'),   // simultané
+  fx('gD6','2026-06-25','15:00','TUR','PAR','MD3','D','HOU'),  // simultané
+
+  // GROUPE E : GER · CIV · ECU · CUW
+  fx('gE1','2026-06-13','15:00','GER','CIV','MD1','E','NY'),
+  fx('gE2','2026-06-13','18:00','ECU','CUW','MD1','E','MEX'),
+  fx('gE3','2026-06-20','15:00','GER','ECU','MD2','E','PHI'),
+  fx('gE4','2026-06-20','18:00','CIV','CUW','MD2','E','BOS'),
+  fx('gE5','2026-06-25','18:00','GER','CUW','MD3','E','DAL'),  // simultané
+  fx('gE6','2026-06-25','18:00','CIV','ECU','MD3','E','SEA'),  // simultané
+
+  // GROUPE F : NED · JPN · SUE · TUN
+  fx('gF1','2026-06-14','15:00','NED','JPN','MD1','F','ATL'),
+  fx('gF2','2026-06-14','18:00','SUE','TUN','MD1','F','KC'),
+  fx('gF3','2026-06-20','21:00','NED','SUE','MD2','F','NY'),
+  fx('gF4','2026-06-20','18:00','JPN','TUN','MD2','F','VAN'),
+  fx('gF5','2026-06-25','21:00','NED','TUN','MD3','F','MIA'),  // simultané
+  fx('gF6','2026-06-25','21:00','JPN','SUE','MD3','F','BOS'),  // simultané
+
+  // GROUPE G : BEL · IRN · EGY · NZL
+  fx('gG1','2026-06-14','21:00','BEL','EGY','MD1','G','LA'),
+  fx('gG2','2026-06-14','18:00','IRN','NZL','MD1','G','SF'),
+  fx('gG3','2026-06-21','15:00','BEL','IRN','MD2','G','MIA'),
+  fx('gG4','2026-06-21','18:00','EGY','NZL','MD2','G','DAL'),
+  fx('gG5','2026-06-26','15:00','BEL','NZL','MD3','G','ATL'),  // simultané
+  fx('gG6','2026-06-26','15:00','IRN','EGY','MD3','G','KC'),   // simultané
+
+  // GROUPE H : ESP · URU · KSA · CPV
+  fx('gH1','2026-06-15','21:00','ESP','URU','MD1','H','LA'),
+  fx('gH2','2026-06-15','18:00','KSA','CPV','MD1','H','MEX'),
+  fx('gH3','2026-06-21','21:00','ESP','KSA','MD2','H','NY'),
+  fx('gH4','2026-06-21','18:00','URU','CPV','MD2','H','PHI'),
+  fx('gH5','2026-06-26','18:00','ESP','CPV','MD3','H','BOS'),  // simultané
+  fx('gH6','2026-06-26','18:00','URU','KSA','MD3','H','HOU'),  // simultané
+
+  // GROUPE I : FRA · SEN · IRQ · NOR
+  fx('gI1','2026-06-15','15:00','FRA','SEN','MD1','I','DAL'),
+  fx('gI2','2026-06-15','18:00','IRQ','NOR','MD1','I','ATL'),
+  fx('gI3','2026-06-22','15:00','FRA','IRQ','MD2','I','NY'),
+  fx('gI4','2026-06-22','18:00','SEN','NOR','MD2','I','SEA'),
+  fx('gI5','2026-06-26','21:00','FRA','NOR','MD3','I','LA'),   // simultané
+  fx('gI6','2026-06-26','21:00','SEN','IRQ','MD3','I','SF'),   // simultané
+
+  // GROUPE J : ARG · ALG · AUT · JOR
+  fx('gJ1','2026-06-16','21:00','ARG','AUT','MD1','J','MIA'),
+  fx('gJ2','2026-06-16','18:00','ALG','JOR','MD1','J','GDL'),
+  fx('gJ3','2026-06-22','21:00','ARG','ALG','MD2','J','NY'),
+  fx('gJ4','2026-06-22','18:00','AUT','JOR','MD2','J','PHI'),
+  fx('gJ5','2026-06-27','15:00','ARG','JOR','MD3','J','LA'),   // simultané
+  fx('gJ6','2026-06-27','15:00','ALG','AUT','MD3','J','BOS'),  // simultané
+
+  // GROUPE K : POR · COL · UZB · COD
+  fx('gK1','2026-06-16','15:00','POR','COL','MD1','K','DAL'),
+  fx('gK2','2026-06-16','18:00','UZB','COD','MD1','K','SEA'),
+  fx('gK3','2026-06-23','15:00','POR','UZB','MD2','K','NY'),
+  fx('gK4','2026-06-23','18:00','COL','COD','MD2','K','ATL'),
+  fx('gK5','2026-06-27','18:00','POR','COD','MD3','K','MIA'),  // simultané
+  fx('gK6','2026-06-27','18:00','UZB','COL','MD3','K','PHI'),  // simultané
+
+  // GROUPE L : ENG · CRO · PAN · GHA
+  fx('gL1','2026-06-17','18:00','ENG','CRO','MD1','L','SF'),
+  fx('gL2','2026-06-17','21:00','PAN','GHA','MD1','L','TOR'),
+  fx('gL3','2026-06-23','21:00','ENG','PAN','MD2','L','DAL'),
+  fx('gL4','2026-06-23','18:00','CRO','GHA','MD2','L','KC'),
+  fx('gL5','2026-06-27','21:00','ENG','GHA','MD3','L','LA'),   // simultané
+  fx('gL6','2026-06-27','21:00','CRO','PAN','MD3','L','VAN'),  // simultané
+
+  // ── 16es DE FINALE ───────────────────────────────────────────────────────
+  fx('r32a','2026-06-29','18:00','FRA','ECU', 'R32','-','DAL'),
+  fx('r32b','2026-06-29','21:00','BEL','NOR', 'R32','-','ATL'),
+  fx('r32c','2026-06-29','18:00','BRA','CRO', 'R32','-','MIA'),
+  fx('r32d','2026-06-29','21:00','ENG','SCO', 'R32','-','NY'),
+  fx('r32e','2026-06-30','18:00','GER','AUS', 'R32','-','SF'),
+  fx('r32f','2026-06-30','21:00','NED','CIV', 'R32','-','LA'),
+  fx('r32g','2026-06-30','18:00','ESP','IRN', 'R32','-','PHI'),
+  fx('r32h','2026-06-30','21:00','USA','SUE', 'R32','-','SEA'),
+  fx('r32i','2026-07-01','12:00','MEX','SUI', 'R32','-','GDL'),
+  fx('r32j','2026-07-01','15:00','CAN','COL', 'R32','-','TOR'),
+  fx('r32k','2026-07-01','18:00','POR','JPN', 'R32','-','BOS', null,'scheduled',{home:1.8,draw:3.6,away:5.0}),
+  fx('r32l','2026-07-01','21:00','ARG','SEN', 'R32','-','MIA', null,'scheduled',{home:1.7,draw:3.8,away:5.2}),
+  fx('r32m','2026-07-02','18:00','URU','PAR', 'R32','-','MTY'),
+  fx('r32n','2026-07-02','21:00','AUT','EGY', 'R32','-','KC'),
+  fx('r32o','2026-07-03','18:00','MAR','TUR', 'R32','-','HOU', null,'scheduled',{home:2.2,draw:3.4,away:3.2}),
+  fx('r32p','2026-07-03','21:00','KOR','ALG', 'R32','-','DAL'),
+
+  // ── 8es DE FINALE ────────────────────────────────────────────────────────
+  fx('r16a','2026-07-04','18:00','FRA','MEX', 'R16','-','NY',  null,'scheduled',{home:1.6,draw:3.9,away:5.8}),
+  fx('r16b','2026-07-04','21:00','NED','BEL', 'R16','-','LA',  null,'scheduled',{home:2.3,draw:3.3,away:3.1}),
+  fx('r16c','2026-07-05','18:00','BRA','KOR', 'R16','-','MIA', null,'scheduled',{home:1.5,draw:4.0,away:6.5}),
+  fx('r16d','2026-07-05','21:00','ENG','AUT', 'R16','-','DAL', null,'scheduled',{home:1.7,draw:3.7,away:5.2}),
+  fx('r16e','2026-07-06','18:00','ESP','USA', 'R16','-','HOU', null,'scheduled',{home:2.0,draw:3.5,away:4.0}),
+  fx('r16f','2026-07-06','21:00','GER','POR', 'R16','-','SF',  null,'scheduled',{home:2.4,draw:3.3,away:2.9}),
+  fx('r16g','2026-07-07','18:00','ARG','CAN', 'R16','-','ATL', null,'scheduled',{home:1.4,draw:4.2,away:7.5}),
+  fx('r16h','2026-07-07','21:00','URU','BEL', 'R16','-','PHI', null,'scheduled',{home:2.8,draw:3.3,away:2.5}),
+
+  // ── QUARTS DE FINALE ─────────────────────────────────────────────────────
+  fx('qf1','2026-07-09','18:00','FRA','NED',  'QF','-','LA',   null,'scheduled',{home:2.2,draw:3.4,away:3.2}),
+  fx('qf2','2026-07-09','21:00','BRA','ENG',  'QF','-','NY',   null,'scheduled',{home:2.0,draw:3.3,away:3.7}),
+  fx('qf3','2026-07-10','18:00','ESP','GER',  'QF','-','DAL',  null,'scheduled',{home:2.1,draw:3.4,away:3.5}),
+  fx('qf4','2026-07-10','21:00','ARG','URU',  'QF','-','MIA',  null,'scheduled',{home:1.9,draw:3.5,away:4.2}),
+
+  // ── DEMI-FINALES ─────────────────────────────────────────────────────────
+  fx('c60','2026-07-14','21:00','FRA','BRA',  'SF','-','NY',   null,'scheduled',{home:2.6,draw:3.3,away:2.7}),
+  fx('c61','2026-07-15','21:00','ESP','ARG',  'SF','-','LA',   null,'scheduled',{home:2.4,draw:3.3,away:2.9}),
+
+  // ── 3e PLACE ─────────────────────────────────────────────────────────────
+  fx('c70','2026-07-18','18:00','BRA','ESP',  '3RD','-','MIA', null,'scheduled',{home:2.6,draw:3.3,away:2.7}),
+
+  // ── FINALE ───────────────────────────────────────────────────────────────
+  fx('c80','2026-07-19','21:00','FRA','ARG',  'F','-','NY',    null,'scheduled',{home:2.7,draw:3.2,away:2.6}),
 ]
 
 export const STAGE_INFO: Record<string, { label: string; short: string; color: string }> = {
