@@ -26,8 +26,9 @@ const LiveView           = dynamic(() => import('./live-view').then(m => ({ defa
 const PredictionFormView = dynamic(() => import('./prediction-view').then(m => ({ default: m.PredictionFormView })))
 const LeaderboardView    = dynamic(() => import('./leaderboard-view').then(m => ({ default: m.LeaderboardView })))
 const BettingView        = dynamic(() => import('./betting-view').then(m => ({ default: m.BettingView })))
+const AgentView          = dynamic(() => import('./agent-view').then(m => ({ default: m.AgentView })))
 
-type View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile' | 'auth' | 'prediction' | 'leaderboard' | 'betting'
+type View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile' | 'auth' | 'prediction' | 'leaderboard' | 'betting' | 'agent'
 
 export default function App() {
   const [view, setView] = useState<View>('home')
@@ -91,7 +92,7 @@ export default function App() {
       {view==='home' && (
         <>
           <HeroFeatured onOpenMatch={openMatch}/>
-          <UpcomingStrip onOpenMatch={openMatch}/>
+          <UpcomingStrip onOpenMatch={openMatch} onOpenCalendar={() => { setView('calendar'); window.scrollTo(0,0) }}/>
           <FavoritesSection onOpenTeam={openTeam}/>
           <NewsSection/>
           <AnalysesGrid/>
@@ -109,6 +110,7 @@ export default function App() {
       {view==='prediction' && <PredictionFormView matchId={activeMatch} onBack={() => setView('predictions')} user={user}/>}
       {view==='leaderboard' && <LeaderboardView onBack={() => setView('predictions')}/>}
       {view==='betting' && <BettingView/>}
+      {view==='agent' && <AgentView/>}
       {view==='profile' && <ProfileView profile={profile} user={user}/>}
       {view==='auth' && <AuthView onBack={() => setView('home')}/>}
 
@@ -129,6 +131,7 @@ function TopBar({ view, setView, user, profile, onSignOut }: {
     ['teams', 'Équipes'],
     ['predictions', 'Pronostics'],
     ['betting', 'Paris'],
+    ['agent', 'Agent IA'],
   ]
   return (
     <header style={{
@@ -196,7 +199,30 @@ function TopBar({ view, setView, user, profile, onSignOut }: {
   )
 }
 
+type CommunityStats = { players: number; predictions: number; precision: number | null; totalPoints: number }
+
+function fmtCount(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1).replace('.0', '') + 'M'
+  if (n >= 10_000)    return Math.round(n / 1_000) + 'k'
+  if (n >= 1_000)     return n.toLocaleString('fr-FR')
+  return String(n)
+}
+
 function CommunityCallout({ onJoin }: { onJoin: () => void }) {
+  const [stats, setStats] = useState<CommunityStats | null>(null)
+
+  useEffect(() => {
+    fetch('/api/community-stats')
+      .then(r => r.ok ? r.json() : null)
+      .then((d: CommunityStats | null) => { if (d) setStats(d) })
+      .catch(() => {})
+  }, [])
+
+  const players    = stats ? fmtCount(stats.players)     : '—'
+  const preds      = stats ? fmtCount(stats.predictions) : '—'
+  const precision  = stats?.precision != null ? stats.precision.toFixed(1) + '%' : '—'
+  const pts        = stats ? fmtCount(stats.totalPoints) : '—'
+
   return (
     <section style={{ background: PALETTE.ink, color:'#FFFFFF', borderTop:'1.5px solid var(--ink)' }}>
       <div style={{ maxWidth:1320, margin:'0 auto', padding:'72px 32px', display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:48, alignItems:'center' }}>
@@ -220,10 +246,10 @@ function CommunityCallout({ onJoin }: { onJoin: () => void }) {
           </div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-          <BigKpi color={PALETTE.lime}    label="Joueurs actifs"   value="48 200"/>
-          <BigKpi color={PALETTE.magenta} label="Pronostics posés" value="312k"/>
-          <BigKpi color={PALETTE.blue}    label="Précision moy."   value="58.4%"/>
-          <BigKpi color={PALETTE.red}     label="Points distribués" value="9.4M"/>
+          <BigKpi color={PALETTE.lime}    label="Joueurs actifs"    value={players}/>
+          <BigKpi color={PALETTE.magenta} label="Pronostics posés"  value={preds}/>
+          <BigKpi color={PALETTE.blue}    label="Précision moy."    value={precision}/>
+          <BigKpi color={PALETTE.red}     label="Points distribués" value={pts}/>
         </div>
       </div>
     </section>

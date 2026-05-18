@@ -3,14 +3,19 @@
 // Team Detail View + Profile View
 // Ported 1:1 from design/js/10-team-detail.jsx
 
+import { useState, useEffect } from 'react'
 import type { User } from '@supabase/supabase-js'
 import type { Profile } from '@/lib/db-types'
-import { TEAMS, SQUADS, TEAM_STATS, MATCHES, PROFILE } from './data'
+import type { SquadPlayer } from '@/app/api/squad/route'
+import type { CoachData } from '@/app/api/coach/route'
+import { TEAMS, SQUADS, TEAM_STATS, MATCHES, PROFILE, CALENDAR, STAGE_INFO, TZ_LABEL, toParis } from './data'
 import { Flag, FormDots, ImagePlaceholder, PALETTE } from './ui-primitives'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const teamByCode = (c: string) => TEAMS.find(t => t.code===c)!
+
+const POS_LABEL: Record<string, string> = { GK:'Gardiens', DEF:'Défenseurs', MID:'Milieux', FWD:'Attaquants' }
 
 export function TeamDetailView({
   teamCode, onBack, onOpenMatch,
@@ -18,16 +23,51 @@ export function TeamDetailView({
   const team = teamByCode(teamCode)
   const squad = SQUADS[teamCode]
   const stats = TEAM_STATS[teamCode]
+
+  const [apiPlayers, setApiPlayers] = useState<SquadPlayer[] | null>(null)
+  const [loadingPlayers, setLoadingPlayers] = useState(true)
+  const [coach, setCoach] = useState<CoachData | null>(null)
+
+  useEffect(() => {
+    setLoadingPlayers(true)
+    setApiPlayers(null)
+    setCoach(null)
+    fetch(`/api/squad?code=${teamCode}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { players: SquadPlayer[]; found: boolean } | null) => {
+        if (d?.found && d.players.length > 0) setApiPlayers(d.players)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingPlayers(false))
+    fetch(`/api/coach?code=${teamCode}`)
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { coach: CoachData | null } | null) => { if (d?.coach) setCoach(d.coach) })
+      .catch(() => {})
+  }, [teamCode])
+
   if (!team || !squad) return null
 
   const matches = MATCHES.filter(m => m.home===teamCode || m.away===teamCode)
 
-  const positions = ['GK', 'DEF', 'MID', 'FWD']
-  const grouped = positions.map(p => ({
-    pos:p,
-    label: ({GK:'Gardiens', DEF:'Défenseurs', MID:'Milieux', FWD:'Attaquants'} as Record<string,string>)[p],
-    players: squad.players.filter((pl: any) => pl.pos===p),
-  }))
+  // Tous les matchs du CALENDAR pour cette équipe, triés par date
+  const MOIS_COURT = ['JAN','FÉV','MAR','AVR','MAI','JUIN','JUIL','AOÛT','SEP','OCT','NOV','DÉC']
+  const calendarMatches = CALENDAR
+    .filter(m => m.home === teamCode || m.away === teamCode)
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  const positions: Array<'GK'|'DEF'|'MID'|'FWD'> = ['GK', 'DEF', 'MID', 'FWD']
+
+  const grouped = apiPlayers
+    ? positions.map(p => ({
+        pos: p,
+        label: POS_LABEL[p],
+        players: apiPlayers.filter(pl => pl.pos === p),
+      }))
+    : positions.map(p => ({
+        pos: p,
+        label: POS_LABEL[p],
+        players: (squad.players as any[]).filter(pl => pl.pos === p),
+      }))
 
   return (
     <section style={{ background:'var(--paper)' }}>
@@ -63,56 +103,112 @@ export function TeamDetailView({
 
       <div style={{ maxWidth:1320, margin:'0 auto', padding:'32px 32px 64px', display:'grid', gridTemplateColumns:'1fr 360px', gap:24 }}>
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-          <div className="card" style={{ padding:0, overflow:'hidden' }}>
-            <ImagePlaceholder kind="locker" color={team.color}
-              label={'AMBIANCE ' + squad.mood} h={120}/>
-            <div style={{ padding:22 }}>
-              <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:10 }}>
-                <h3 className="display" style={{ fontSize:24, margin:0 }}>Atmosphère du groupe</h3>
-                <span className="chip" style={{ background: PALETTE.lime, color:'var(--ink)' }}>{squad.mood}</span>
-              </div>
-              <p style={{ fontSize:14, color:'var(--ink)', lineHeight:1.5, margin:'0 0 14px' }}>{squad.moodLabel}</p>
-              <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-                <div style={{ flex:1, height:10, background:'var(--paper-2)', borderRadius:5, overflow:'hidden', border:'1px solid var(--line)' }}>
-                  <div style={{ height:'100%', width: squad.moodScore + '%', background: squad.moodScore>=75 ? PALETTE.lime : squad.moodScore>=50 ? '#FFD400' : PALETTE.red }}/>
+          {/* Bloc sélectionneur */}
+          <div className="card" style={{ padding:24 }}>
+            <h3 className="display" style={{ fontSize:22, margin:'0 0 18px' }}>Sélectionneur</h3>
+            {coach ? (
+              <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:20, alignItems:'start' }}>
+                <div style={{ position:'relative' }}>
+                  {coach.photo ? (
+                    <img src={coach.photo} alt={coach.name}
+                      style={{ width:88, height:88, borderRadius:14, objectFit:'cover', border:'1.5px solid var(--ink)', display:'block' }}
+                      onError={e => { (e.currentTarget as HTMLImageElement).style.display='none' }}
+                    />
+                  ) : (
+                    <div style={{ width:88, height:88, borderRadius:14, background:'var(--paper-2)', border:'1.5px solid var(--line)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32 }}>🧑‍💼</div>
+                  )}
                 </div>
-                <span className="mono display" style={{ fontSize:24 }}>{squad.moodScore}<span style={{ fontSize:12, color:'var(--muted)' }}>/100</span></span>
+                <div>
+                  <div className="display" style={{ fontSize:26, lineHeight:1, marginBottom:6 }}>{coach.name}</div>
+                  <div style={{ display:'flex', gap:10, flexWrap:'wrap', marginBottom:12 }}>
+                    {coach.nationality && <span className="chip" style={{ background:'var(--ink)', color:'var(--paper)', fontSize:9 }}>{coach.nationality.toUpperCase()}</span>}
+                    {coach.age && <span className="chip" style={{ background:'var(--paper-2)', color:'var(--ink)', fontSize:9 }}>{coach.age} ANS</span>}
+                    {coach.since && <span className="chip" style={{ background: PALETTE.lime, color:'var(--ink)', fontSize:9 }}>EN POSTE DEPUIS {coach.since.slice(0,4)}</span>}
+                  </div>
+                  {coach.career.length > 0 && (
+                    <div>
+                      <div style={{ fontSize:9, fontWeight:800, color:'var(--muted)', letterSpacing:'0.1em', marginBottom:6 }}>CARRIÈRE</div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                        {coach.career.slice(0,4).map((j, i) => (
+                          <div key={i} style={{ display:'flex', alignItems:'center', gap:8, fontSize:11, fontWeight:600 }}>
+                            <span style={{ width:6, height:6, borderRadius:'50%', background: j.end === null ? PALETTE.lime : 'var(--line)', flexShrink:0, border:'1px solid var(--ink)' }}/>
+                            <span style={{ color:'var(--ink)', fontWeight: j.end === null ? 800 : 600 }}>{j.team}</span>
+                            <span style={{ color:'var(--muted)', fontSize:10 }}>{j.start?.slice(0,4)}{j.end ? ` → ${j.end.slice(0,4)}` : ' → aujourd\'hui'}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                <div style={{ width:88, height:88, borderRadius:14, background:'var(--paper-2)', border:'1.5px solid var(--line)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:32 }}>🧑‍💼</div>
+                <div>
+                  <div className="display" style={{ fontSize:22, marginBottom:4 }}>{squad.coach}</div>
+                  <div style={{ fontSize:12, color:'var(--muted)', fontWeight:600 }}>Système préférentiel · {squad.formation}</div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="card" style={{ padding:24 }}>
             <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:14 }}>
-              <h3 className="display" style={{ fontSize:24, margin:0 }}>Effectif &amp; forme du moment</h3>
-              <span style={{ fontSize:11, color:'var(--muted)', fontWeight:700, letterSpacing:'0.06em' }}>FORME · 0-100 SUR LES 5 DERNIERS MATCHS CLUB</span>
+              <h3 className="display" style={{ fontSize:24, margin:0 }}>Effectif officiel</h3>
+              {apiPlayers
+                ? <span style={{ fontSize:11, color:'var(--muted)', fontWeight:700, letterSpacing:'0.06em' }}>SOURCE · API-FOOTBALL · {apiPlayers.length} JOUEURS</span>
+                : <span style={{ fontSize:11, color:'var(--muted)', fontWeight:700, letterSpacing:'0.06em' }}>DONNÉES MOCK</span>
+              }
             </div>
-            {squad.players.length === 0 ? (
-              <div style={{ padding:'40px 0', textAlign:'center', color:'var(--muted)', fontSize:13 }}>
-                Liste détaillée bientôt disponible
+
+            {loadingPlayers ? (
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:8 }}>
+                {Array.from({length:12}).map((_,i) => (
+                  <div key={i} style={{ height:64, borderRadius:10, background:'var(--paper-2)', animation:'pulse 1.4s infinite' }}/>
+                ))}
               </div>
             ) : (
-              <div style={{ display:'grid', gap:18 }}>
+              <div style={{ display:'grid', gap:20 }}>
                 {grouped.filter(g => g.players.length>0).map(g => (
                   <div key={g.pos}>
-                    <div style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.12em', marginBottom:8 }}>{g.label.toUpperCase()} · {g.players.length}</div>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px, 1fr))', gap:8 }}>
-                      {g.players.map((p: any, i: number) => (
-                        <div key={i} style={{
-                          padding:'10px 12px', border:'1px solid var(--line)', borderRadius:10,
-                          display:'grid', gridTemplateColumns:'24px 1fr 60px', alignItems:'center', gap:10,
+                    <div style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.12em', marginBottom:10 }}>
+                      {g.label.toUpperCase()} · {g.players.length}
+                    </div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:8 }}>
+                      {g.players.map((p: any, i: number) => {
+                        const isApi = !!apiPlayers
+                        const num  = isApi ? p.number : p.num
+                        const photo = isApi ? p.photo : null
+                        return (
+                        <div key={isApi ? p.id : i} style={{
+                          padding:'10px 12px', border:'1.5px solid var(--line)', borderRadius:10,
+                          display:'grid', gridTemplateColumns: photo ? '40px 24px 1fr' : '24px 1fr',
+                          alignItems:'center', gap:10,
                           background: p.captain ? `${team.color}10` : 'var(--paper)',
-                        }}>
-                          <span className="display mono" style={{ fontSize:14, color: 'var(--ink)' }}>{p.num}</span>
+                          transition:'border-color .12s',
+                        }}
+                          onMouseEnter={e => (e.currentTarget.style.borderColor='var(--ink)')}
+                          onMouseLeave={e => (e.currentTarget.style.borderColor='var(--line)')}>
+                          {photo && (
+                            <img src={photo} alt={p.name}
+                              style={{ width:40, height:40, borderRadius:8, objectFit:'cover', background:'var(--paper-2)', border:'1px solid var(--line)' }}
+                              onError={e => { (e.currentTarget as HTMLImageElement).style.display='none' }}
+                            />
+                          )}
+                          <span className="mono display" style={{ fontSize:14, color:'var(--muted)', minWidth:20, textAlign:'center' }}>
+                            {num ?? '—'}
+                          </span>
                           <div>
-                            <div style={{ fontSize:12, fontWeight:800, display:'flex', alignItems:'center', gap:6 }}>
+                            <div style={{ fontSize:12, fontWeight:800, display:'flex', alignItems:'center', gap:6, lineHeight:1.2 }}>
                               {p.name}
                               {p.captain && <span style={{ fontSize:9, padding:'1px 5px', background:'var(--ink)', color:'var(--paper)', borderRadius:3, fontWeight:800 }}>C</span>}
                             </div>
-                            <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, marginTop:1 }}>{p.club} · {p.age} ans</div>
+                            <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, marginTop:2 }}>
+                              {isApi ? `${p.age} ans` : `${p.club} · ${p.age} ans`}
+                            </div>
                           </div>
-                          <FormBar value={p.form}/>
                         </div>
-                      ))}
+                      )})}
                     </div>
                   </div>
                 ))}
@@ -200,24 +296,59 @@ export function TeamDetailView({
           <div className="card" style={{ padding:0, overflow:'hidden' }}>
             <div style={{ padding:'14px 18px', background:'var(--ink)', color:'var(--paper)' }}>
               <h3 className="display" style={{ fontSize:18, margin:0 }}>Agenda</h3>
-              <div style={{ fontSize:11, opacity:0.7, fontWeight:600, marginTop:2 }}>Matchs &amp; événements à venir</div>
+              <div style={{ fontSize:11, opacity:0.7, fontWeight:600, marginTop:2 }}>
+                {calendarMatches.length} match{calendarMatches.length > 1 ? 's' : ''} au programme
+              </div>
             </div>
-            {squad.upcomingEvents.length === 0 ? (
-              <p style={{ padding:20, fontSize:13, color:'var(--muted)', margin:0 }}>Aucun événement programmé.</p>
+            {calendarMatches.length === 0 ? (
+              <p style={{ padding:20, fontSize:13, color:'var(--muted)', margin:0 }}>Aucun match au calendrier.</p>
             ) : (
               <div>
-                {squad.upcomingEvents.map((e: any, i: number) => (
-                  <div key={i} style={{ display:'grid', gridTemplateColumns:'60px 1fr', gap:14, padding:'12px 18px', borderBottom: i<squad.upcomingEvents.length-1 ? '1px solid var(--line)' : 'none', alignItems:'center' }}>
-                    <div style={{ textAlign:'center', padding:'4px 0', background:'var(--paper-2)', borderRadius:6 }}>
-                      <div className="display mono" style={{ fontSize:14, color: team.color }}>{e.date.split(' ')[0]}</div>
-                      <div style={{ fontSize:9, fontWeight:800, color:'var(--muted)' }}>{e.date.split(' ')[1]}</div>
+                {calendarMatches.map((m, i) => {
+                  const isHome = m.home === teamCode
+                  const opp = teamByCode(isHome ? m.away : m.home)
+                  const [, mo, day] = m.date.split('-')
+                  const paris = toParis(m.time, m.vKey)
+                  const isPast = m.date < new Date().toISOString().slice(0, 10)
+                  return (
+                    <div key={m.id} onClick={() => onOpenMatch(m.id)} style={{
+                      display:'grid', gridTemplateColumns:'64px 1fr auto', gap:14,
+                      padding:'12px 18px',
+                      borderBottom: i < calendarMatches.length - 1 ? '1px solid var(--line)' : 'none',
+                      alignItems:'center',
+                      opacity: isPast ? 0.6 : 1,
+                      cursor:'pointer',
+                      transition:'background .12s',
+                    }}
+                      onMouseEnter={e => (e.currentTarget.style.background='var(--paper-2)')}
+                      onMouseLeave={e => (e.currentTarget.style.background='transparent')}
+                    >
+                      <div style={{ textAlign:'center', padding:'6px 0', background: isPast ? 'var(--paper-2)' : `${team.color}15`, borderRadius:8, border: isPast ? 'none' : `1.5px solid ${team.color}40` }}>
+                        <div className="display mono" style={{ fontSize:18, color: isPast ? 'var(--muted)' : team.color, lineHeight:1 }}>{parseInt(day)}</div>
+                        <div style={{ fontSize:9, fontWeight:800, color:'var(--muted)', marginTop:2 }}>{MOIS_COURT[parseInt(mo)-1]}</div>
+                      </div>
+                      <div>
+                        <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:2 }}>
+                          <span className="chip" style={{ fontSize:8, padding:'2px 7px', background:'var(--ink)', color:'var(--paper)' }}>
+                            {m.group !== '-' ? `GR. ${m.group} · ` : ''}{m.stage}
+                          </span>
+                          {m.status === 'live' && <span style={{ fontSize:9, fontWeight:800, color: '#E10600', letterSpacing:'0.06em' }}>● LIVE</span>}
+                        </div>
+                        <div style={{ fontSize:13, fontWeight:800, display:'flex', alignItems:'center', gap:6 }}>
+                          <span style={{ color:'var(--muted)', fontSize:11 }}>{isHome ? 'vs' : '@'}</span>
+                          {opp ? opp.name : (isHome ? m.away : m.home)}
+                          {m.score && <span className="mono" style={{ fontSize:12, background:'var(--paper-2)', padding:'1px 7px', borderRadius:4 }}>{m.score}</span>}
+                        </div>
+                        <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, marginTop:2 }}>
+                          {m.time} {m.vKey && TZ_LABEL[m.vKey] ? TZ_LABEL[m.vKey] : ''}
+                          {paris && <span style={{ color:'var(--blue)', marginLeft:6 }}>↳ {paris.time} Paris{paris.dayShift > 0 ? ' J+'+paris.dayShift : ''}</span>}
+                          {' · '}{m.venue.split('·')[1]?.trim()}
+                        </div>
+                      </div>
+                      <span style={{ fontSize:11, fontWeight:800, color:'var(--muted)', whiteSpace:'nowrap' }}>→</span>
                     </div>
-                    <div>
-                      <div style={{ fontSize:12, fontWeight:800 }}>{e.label}</div>
-                      <div style={{ fontSize:10, color:'var(--muted)', fontWeight:600, marginTop:2 }}>{e.place}</div>
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             )}
           </div>

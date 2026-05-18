@@ -38,14 +38,41 @@ function useStandingsOverlay(): Map<string, Standing> {
 const standingFor = (overlay: Map<string, Standing>, code: string): Standing =>
   overlay.get(code) ?? STANDINGS[code]
 
+type ScoreUpdate = {
+  home_code: string; away_code: string; kickoff_date: string
+  bucket: 'finished' | 'live' | 'scheduled' | 'other'
+  score_home: number | null; score_away: number | null
+  elapsed: number | null; status_short: string
+}
+
+function useScoresOverlay(): Map<string, ScoreUpdate> {
+  const [scores, setScores] = useState<ScoreUpdate[]>([])
+  useEffect(() => {
+    let cancelled = false
+    const load = () => fetch('/api/scores')
+      .then(r => r.ok ? r.json() : { scores: [] })
+      .then((d: { scores?: ScoreUpdate[] }) => { if (!cancelled) setScores(d.scores ?? []) })
+      .catch(() => {})
+    load()
+    const interval = setInterval(load, 60_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
+  return useMemo(() => {
+    const m = new Map<string, ScoreUpdate>()
+    for (const s of scores) m.set(`${s.home_code}-${s.away_code}`, s)
+    return m
+  }, [scores])
+}
+
 export function GroupsView({
   onOpenTeam, onOpenMatch,
 }: { onOpenTeam: (code: string) => void; onOpenMatch: (id: string) => void }) {
   const [focused, setFocused] = useState<string | null>(null)
   const overlay = useStandingsOverlay()
+  const scoreOverlay = useScoresOverlay()
 
   if (focused) {
-    return <GroupDetail letter={focused} onBack={() => setFocused(null)} onOpenTeam={onOpenTeam} onOpenMatch={onOpenMatch} overlay={overlay}/>
+    return <GroupDetail letter={focused} onBack={() => setFocused(null)} onOpenTeam={onOpenTeam} onOpenMatch={onOpenMatch} overlay={overlay} scoreOverlay={scoreOverlay}/>
   }
 
   return (
@@ -171,8 +198,8 @@ function td(): React.CSSProperties {
 }
 
 function GroupDetail({
-  letter, onBack, onOpenTeam, onOpenMatch, overlay,
-}: { letter: string; onBack: () => void; onOpenTeam?: (code: string) => void; onOpenMatch?: (id: string) => void; overlay: Map<string, Standing> }) {
+  letter, onBack, onOpenTeam, onOpenMatch, overlay, scoreOverlay,
+}: { letter: string; onBack: () => void; onOpenTeam?: (code: string) => void; onOpenMatch?: (id: string) => void; overlay: Map<string, Standing>; scoreOverlay: Map<string, ScoreUpdate> }) {
   const codes = GROUPS[letter]
   const rows = codes.map(c => ({ team: teamByCode(c), s: standingFor(overlay, c) }))
     .sort((a, b) => (b.s.Pts - a.s.Pts) || (b.s.GD - a.s.GD) || (b.s.GF - a.s.GF))
@@ -269,33 +296,46 @@ function GroupDetail({
             <div>
               {matches.map((m, i) => {
                 const h = teamByCode(m.home), a = teamByCode(m.away)
-                const finished = m.status === 'finished'
+                const live = scoreOverlay.get(`${m.home}-${m.away}`)
+                const bucket = live?.bucket ?? (m.status === 'finished' ? 'finished' : 'scheduled')
+                const finished = bucket === 'finished'
+                const isLive  = bucket === 'live'
+                const sh = live?.score_home ?? (m.score ? +m.score.split('-')[0] : null)
+                const sa = live?.score_away ?? (m.score ? +m.score.split('-')[1] : null)
+                const hasScore = sh !== null && sa !== null
                 const si = STAGE_INFO[m.stage]
                 return (
                   <div key={m.id} onClick={() => onOpenMatch && onOpenMatch(m.id)} style={{
                     padding:'14px 20px', borderBottom: i<matches.length-1 ? '1px solid var(--line)' : 'none',
                     cursor:'pointer', display:'grid', gridTemplateColumns:'68px 1fr auto', gap:14, alignItems:'center',
+                    background: isLive ? 'rgba(225,6,0,0.04)' : 'transparent',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background='var(--paper-2)')}
-                  onMouseLeave={e => (e.currentTarget.style.background='transparent')}>
+                  onMouseEnter={e => (e.currentTarget.style.background= isLive ? 'rgba(225,6,0,0.08)' : 'var(--paper-2)')}
+                  onMouseLeave={e => (e.currentTarget.style.background= isLive ? 'rgba(225,6,0,0.04)' : 'transparent')}>
                     <div style={{ paddingRight:8, borderRight:'1px solid var(--line)' }}>
                       <div style={{ fontSize:9, fontWeight:800, color:'var(--muted)', letterSpacing:'0.08em' }}>{si.short}</div>
                       <div className="mono" style={{ fontSize:12, fontWeight:700, marginTop:2 }}>{m.date.slice(-2)+'/'+m.date.slice(5,7)}</div>
-                      <div className="mono" style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>{m.time}</div>
+                      {isLive
+                        ? <div style={{ fontSize:10, fontWeight:800, color: PALETTE.red }}>⬤ {live?.elapsed}&apos;</div>
+                        : <div className="mono" style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>{m.time}</div>
+                      }
                     </div>
                     <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, opacity: finished && +m.score!.split('-')[0] < +m.score!.split('-')[1] ? 0.55 : 1 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, opacity: hasScore && sh! < sa! ? 0.55 : 1 }}>
                         <Flag team={h} w={24} h={16}/>
                         <span className="display" style={{ fontSize:15 }}>{h.code}</span>
-                        {finished && <span className="display mono" style={{ fontSize:16, marginLeft:'auto' }}>{m.score!.split('-')[0]}</span>}
+                        {hasScore && <span className="display mono" style={{ fontSize:16, marginLeft:'auto', color: isLive ? PALETTE.red : 'var(--ink)' }}>{sh}</span>}
                       </div>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, opacity: finished && +m.score!.split('-')[1] < +m.score!.split('-')[0] ? 0.55 : 1 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, opacity: hasScore && sa! < sh! ? 0.55 : 1 }}>
                         <Flag team={a} w={24} h={16}/>
                         <span className="display" style={{ fontSize:15 }}>{a.code}</span>
-                        {finished && <span className="display mono" style={{ fontSize:16, marginLeft:'auto' }}>{m.score!.split('-')[1]}</span>}
+                        {hasScore && <span className="display mono" style={{ fontSize:16, marginLeft:'auto', color: isLive ? PALETTE.red : 'var(--ink)' }}>{sa}</span>}
                       </div>
                     </div>
-                    <span style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.06em' }}>{finished ? 'TERMINÉ' : '→'}</span>
+                    <span style={{ fontSize:10, fontWeight:800, letterSpacing:'0.06em',
+                      color: isLive ? PALETTE.red : finished ? 'var(--muted)' : 'var(--muted)' }}>
+                      {isLive ? 'LIVE' : finished ? 'TERMINÉ' : '→'}
+                    </span>
                   </div>
                 )
               })}

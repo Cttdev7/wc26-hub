@@ -6,8 +6,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import type { Profile, Prediction } from '@/lib/db-types'
 import {
-  TEAMS, MATCHES, FEATURED, FEATURED_PULSE, ANALYSES, TEAM_STATS, LINEUPS,
-  CALENDAR, STAGE_INFO, TZ_LABEL, toParis,
+  TEAMS, MATCHES, FEATURED_PULSE, ANALYSES, TEAM_STATS, LINEUPS,
+  CALENDAR, STAGE_INFO, TZ_LABEL, TZ_OFFSET, toParis,
 } from './data'
 import { Flag, TeamBadge, StatRow, FormDots, Pitch, ImagePlaceholder, PALETTE } from './ui-primitives'
 
@@ -15,23 +15,42 @@ import { Flag, TeamBadge, StatRow, FormDots, Pitch, ImagePlaceholder, PALETTE } 
 
 const teamByCode = (c: string) => TEAMS.find(t => t.code===c)!
 
+// Format '2026-06-15' → '15 JUIN'
+const MOIS = ['JAN','FÉV','MAR','AVR','MAI','JUIN','JUIL','AOÛT','SEP','OCT','NOV','DÉC']
+function fmtDate(iso: string): string {
+  const [, mo, day] = iso.split('-')
+  return `${parseInt(day)} ${MOIS[parseInt(mo)-1]}`
+}
+
+// Convert match local time to UTC ms
+function matchUTCms(dateISO: string, time: string, vKey: string): number {
+  const [hh, mm] = time.split(':').map(Number)
+  const localToUTC = (TZ_OFFSET[vKey] ?? 6) - 2
+  return new Date(dateISO + 'T00:00:00Z').getTime() + (hh + localToUTC) * 3_600_000 + mm * 60_000
+}
+
+// First FRA match from CALENDAR (sorted by date)
+const FRA_HERO = CALENDAR.filter(m => m.home === 'FRA' || m.away === 'FRA')
+  .sort((a, b) => a.date.localeCompare(b.date))[0]
+
 export function HeroFeatured({ onOpenMatch }: { onOpenMatch: (id: string) => void }) {
-  const m = FEATURED
+  const m = FRA_HERO
   const home = teamByCode(m.home)
   const away = teamByCode(m.away)
   const pulse = FEATURED_PULSE
 
-  const [tick, setTick] = useState(0)
+  const targetUTC = matchUTCms(m.date, m.time, m.vKey ?? 'DAL')
+  const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
-    const t = setInterval(() => setTick(x => x + 1), 1000)
+    const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
   }, [])
-  const totalSec = 3*86400 + 11*3600 + 27*60 + 4 - tick
-  const days = Math.max(0, Math.floor(totalSec / 86400))
-  const hrs  = Math.max(0, Math.floor((totalSec % 86400)/3600))
-  const mins = Math.max(0, Math.floor((totalSec % 3600)/60))
-  const secs = Math.max(0, totalSec % 60)
-  const pad = (n: number) => String(n).padStart(2,'0')
+  const totalSec = Math.max(0, Math.floor((targetUTC - now) / 1000))
+  const days = Math.floor(totalSec / 86400)
+  const hrs  = Math.floor((totalSec % 86400) / 3600)
+  const mins = Math.floor((totalSec % 3600) / 60)
+  const secs = totalSec % 60
+  const pad = (n: number) => String(n).padStart(2, '0')
 
   return (
     <section style={{
@@ -46,7 +65,7 @@ export function HeroFeatured({ onOpenMatch }: { onOpenMatch: (id: string) => voi
           <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
             <span className="chip" style={{ background: PALETTE.lime, color:'var(--ink)' }}>● Match à la une</span>
             <span style={{ fontSize:12, color:'var(--muted)', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' }}>
-              {m.stage} · {m.venue}
+              Groupe {m.group} · {m.stage} · {m.venue}
             </span>
           </div>
 
@@ -60,7 +79,7 @@ export function HeroFeatured({ onOpenMatch }: { onOpenMatch: (id: string) => voi
             </div>
             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
               <div className="display" style={{ fontSize:64, color: PALETTE.red }}>VS</div>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.1em' }}>{m.date} · {m.time}</div>
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.1em' }}>{fmtDate(m.date)} · {m.time}</div>
             </div>
             <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:18 }}>
               <Flag team={away} w={132} h={88} />
@@ -110,16 +129,28 @@ export function HeroFeatured({ onOpenMatch }: { onOpenMatch: (id: string) => voi
   )
 }
 
-export function UpcomingStrip({ onOpenMatch }: { onOpenMatch: (id: string) => void }) {
+export function UpcomingStrip({ onOpenMatch, onOpenCalendar }: { onOpenMatch: (id: string) => void; onOpenCalendar?: () => void }) {
+  const todayISO = new Date().toISOString().slice(0, 10)
+  const upcoming = [...CALENDAR]
+    .sort((a, b) => {
+      const dc = a.date.localeCompare(b.date)
+      return dc !== 0 ? dc : a.time.localeCompare(b.time)
+    })
+    .filter(m => m.date >= todayISO)
+    .slice(0, 12)
+
+  const displayMatches = upcoming.length > 0 ? upcoming : CALENDAR.slice(0, 12)
+
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'48px 32px 16px' }}>
       <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:18 }}>
-        <h2 className="display" style={{ fontSize:36, margin:0 }}>Cette semaine</h2>
-        <a style={{ fontSize:12, fontWeight:700, color:'var(--muted)', letterSpacing:'0.06em', textTransform:'uppercase' }}>Tout le calendrier →</a>
+        <h2 className="display" style={{ fontSize:36, margin:0 }}>Prochains matchs</h2>
+        <button onClick={onOpenCalendar} style={{ background:'none', border:'none', cursor:'pointer', fontSize:12, fontWeight:700, color:'var(--muted)', letterSpacing:'0.06em', textTransform:'uppercase', padding:0 }}>
+          Tout le calendrier →
+        </button>
       </div>
       <div className="h-scroll" style={{ display:'flex', gap:14, paddingBottom:6 }}>
-        {MATCHES.map((mBase, i) => {
-          const m = CALENDAR.find(x => x.id === mBase.id) || mBase
+        {displayMatches.map((m, i) => {
           const h = teamByCode(m.home), a = teamByCode(m.away)
           const accent = [PALETTE.red, PALETTE.purple, PALETTE.blue, PALETTE.magenta, PALETTE.lime, PALETTE.orange][i%6]
           return (
@@ -130,8 +161,10 @@ export function UpcomingStrip({ onOpenMatch }: { onOpenMatch: (id: string) => vo
             onMouseEnter={e => (e.currentTarget.style.transform='translateY(-3px)')}
             onMouseLeave={e => (e.currentTarget.style.transform='translateY(0)')}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
-                <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--muted)' }}>{m.stage}</span>
-                <span className="mono" style={{ fontSize:11, color:'var(--ink)', fontWeight:700 }}>{m.date}</span>
+                <span style={{ fontSize:11, fontWeight:800, letterSpacing:'0.08em', textTransform:'uppercase', color:'var(--muted)' }}>
+                  {m.group !== '-' ? `Groupe ${m.group} · ` : ''}{m.stage}
+                </span>
+                <span className="mono" style={{ fontSize:11, color:'var(--ink)', fontWeight:700 }}>{fmtDate(m.date)}</span>
               </div>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -197,31 +230,15 @@ export function AnalysesGrid() {
 }
 
 export function TeamsView({ onOpenTeam }: { onOpenTeam: (code: string) => void }) {
-  const [left, setLeft] = useState('BRA')
-  const [right, setRight] = useState('FRA')
   const [group, setGroup] = useState('ALL')
   const groups = ['ALL', ...Array.from(new Set(TEAMS.map(t => t.group))).sort()]
   const filtered = group==='ALL' ? TEAMS : TEAMS.filter(t => t.group===group)
-
-  const L = teamByCode(left)
-  const R = teamByCode(right)
-  const sL = TEAM_STATS[left]
-  const sR = TEAM_STATS[right]
-
-  const onCardClick = (code: string, e: React.MouseEvent) => {
-    if (e && e.shiftKey) {
-      if (code===left || code===right) return
-      setLeft(right); setRight(code)
-      return
-    }
-    if (onOpenTeam) onOpenTeam(code)
-  }
 
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'40px 32px 64px' }}>
       <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:14 }}>
         <h1 className="display" style={{ fontSize:56, margin:0 }}>Les 48 nations</h1>
-        <span style={{ fontSize:13, color:'var(--muted)', fontWeight:600 }}>Ouvre une fiche équipe ou compare deux nations ↓</span>
+        <span style={{ fontSize:13, color:'var(--muted)', fontWeight:600 }}>Clique sur une équipe pour ouvrir sa fiche</span>
       </div>
 
       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:24 }}>
@@ -233,73 +250,25 @@ export function TeamsView({ onOpenTeam }: { onOpenTeam: (code: string) => void }
         ))}
       </div>
 
-      <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600, marginBottom:14 }}>
-        Clic = ouvrir la fiche équipe · <kbd style={{ padding:'1px 5px', background:'var(--paper-2)', border:'1px solid var(--line)', borderRadius:3, fontFamily:'var(--font-jetbrains-mono), JetBrains Mono', fontSize:10 }}>Shift</kbd>+clic = ajouter au comparateur
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:14, marginBottom:48 }}>
-        {filtered.map(t => {
-          const selected = t.code===left || t.code===right
-          const role = t.code===left ? 'A' : t.code===right ? 'B' : null
-          return (
-            <div key={t.code} onClick={e => onCardClick(t.code, e)}
-              className="card" style={{
-                padding:16, cursor:'pointer', position:'relative',
-                borderColor: selected ? PALETTE.ink : 'var(--ink)',
-                background: selected ? PALETTE.lime : 'var(--paper)',
-                transition:'all .15s',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.transform='translateY(-3px)')}
-              onMouseLeave={e => (e.currentTarget.style.transform='translateY(0)')}>
-              {role && (
-                <span style={{ position:'absolute', top:-10, left:14, background:'var(--ink)', color:'var(--paper)', padding:'2px 10px', borderRadius:8, fontSize:10, fontWeight:800, letterSpacing:'0.1em' }}>
-                  {role==='A' ? '← ÉQUIPE A' : 'ÉQUIPE B →'}
-                </span>
-              )}
-              <Flag team={t} w={56} h={38} />
-              <div className="display" style={{ fontSize:32, marginTop:12 }}>{t.code}</div>
-              <div style={{ fontSize:13, fontWeight:700, color:'var(--ink)', marginBottom:10 }}>{t.name}</div>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                <span style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.08em' }}>GR. {t.group} · #{t.rank}</span>
-                <FormDots form={t.form} size={11}/>
-              </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:14 }}>
+        {filtered.map(t => (
+          <div key={t.code} onClick={() => onOpenTeam(t.code)}
+            className="card" style={{
+              padding:16, cursor:'pointer',
+              background:'var(--paper)',
+              transition:'transform .15s',
+            }}
+            onMouseEnter={e => (e.currentTarget.style.transform='translateY(-3px)')}
+            onMouseLeave={e => (e.currentTarget.style.transform='translateY(0)')}>
+            <Flag team={t} w={56} h={38} />
+            <div className="display" style={{ fontSize:32, marginTop:12 }}>{t.code}</div>
+            <div style={{ fontSize:13, fontWeight:700, color:'var(--ink)', marginBottom:10 }}>{t.name}</div>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+              <span style={{ fontSize:10, fontWeight:800, color:'var(--muted)', letterSpacing:'0.08em' }}>GR. {t.group} · #{t.rank}</span>
+              <FormDots form={t.form} size={11}/>
             </div>
-          )
-        })}
-      </div>
-
-      <div className="card" style={{ padding:32 }}>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', alignItems:'center', marginBottom:28 }}>
-          <TeamBadge team={L} size="lg" />
-          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:6 }}>
-            <span className="display" style={{ fontSize:24, color:PALETTE.red }}>VS</span>
-            <span style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.06em' }}>STATS · PER 90 MIN</span>
           </div>
-          <div style={{ justifySelf:'end' }}><TeamBadge team={R} size="lg" reverse/></div>
-        </div>
-
-        {([
-          ['Possession %','possession'], ['Tirs','shots'], ['Tirs cadrés','sot'],
-          ['Fautes','fouls'], ['Hors-jeu','offsides'], ['Corners','corners'],
-          ['Coups francs','freekicks'], ['Passes','passes'], ['Passes réussies','succPasses'],
-          ['Centres','crosses'], ['Interceptions','intercepts'], ['Tacles','tackles'],
-          ['Arrêts','saves'],
-        ] as Array<[string, string]>).map(([lbl, k]) => (
-          <StatRow key={k} label={lbl} left={sL[k]} right={sR[k]} leftColor={PALETTE.blue} rightColor={PALETTE.lime} />
         ))}
-
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, marginTop:24 }}>
-          <div style={{ padding:18, background:'var(--paper-2)', borderRadius:12, border:'1.5px solid var(--ink)' }}>
-            <div style={{ fontSize:11, fontWeight:800, color:'var(--muted)', letterSpacing:'0.08em', marginBottom:6 }}>xG · {L.code}</div>
-            <div className="display mono" style={{ fontSize:40, color: PALETTE.blue }}>{sL.xg.toFixed(2)}</div>
-            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>Expected goals · attaque</div>
-          </div>
-          <div style={{ padding:18, background:'var(--paper-2)', borderRadius:12, border:'1.5px solid var(--ink)' }}>
-            <div style={{ fontSize:11, fontWeight:800, color:'var(--muted)', letterSpacing:'0.08em', marginBottom:6 }}>xG · {R.code}</div>
-            <div className="display mono" style={{ fontSize:40, color: PALETTE.lime, WebkitTextStroke:'1px var(--ink)' }}>{sR.xg.toFixed(2)}</div>
-            <div style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>Expected goals · attaque</div>
-          </div>
-        </div>
       </div>
     </section>
   )
@@ -310,7 +279,7 @@ export function MatchView({
 }: {
   matchId: string; onBack: () => void; onOpenTeam?: (code: string) => void;
 }) {
-  const m = CALENDAR.find(x => x.id===matchId) || MATCHES.find(x => x.id===matchId) || FEATURED
+  const m = CALENDAR.find(x => x.id===matchId) || MATCHES.find(x => x.id===matchId) || FRA_HERO
   const stageLbl = STAGE_INFO[m.stage]
     ? STAGE_INFO[m.stage].label + (m.group && m.group !== '-' ? ' · Groupe ' + m.group : '')
     : m.stage
@@ -699,14 +668,14 @@ function DayCell({
   const bg =
     !hasMatch ? 'var(--paper-2)'
     : lock === 'today' ? PALETTE.lime
-    : lock === 'past' ? 'var(--paper)'
-    : 'var(--paper)'
+    : lock === 'future' ? '#F0EDE6'
+    : '#E8E4DE'
   const border =
     selected ? '2px solid var(--ink)'
     : !hasMatch ? '1px solid var(--line)'
     : lock === 'today' ? '2px solid var(--ink)'
     : '1.5px solid var(--ink)'
-  const opacity = !hasMatch ? 0.45 : lock === 'future' ? 0.6 : 1
+  const opacity = !hasMatch ? 0.35 : 1
   const cursor = hasMatch ? 'pointer' : 'default'
 
   const dotColor = (status: ReturnType<typeof predictionStatus>) =>
@@ -730,9 +699,9 @@ function DayCell({
 
       {/* Jour + cadenas */}
       <div style={{ width:'100%', display:'flex', alignItems:'flex-start', justifyContent:'space-between' }}>
-        <span className="display mono" style={{ fontSize:18, lineHeight:1, color: lock === 'today' ? 'var(--ink)' : 'var(--ink)' }}>{dayNum}</span>
+        <span className="display mono" style={{ fontSize:18, lineHeight:1 }}>{dayNum}</span>
         {hasMatch && lock === 'future' && (
-          <span style={{ fontSize:11, lineHeight:1, opacity:0.65 }}>🔒</span>
+          <span style={{ fontSize:18, lineHeight:1 }}>🔒</span>
         )}
         {hasMatch && lock === 'today' && (
           <span style={{ fontSize:9, fontWeight:800, background:'var(--ink)', padding:'2px 5px', borderRadius:3, lineHeight:1 }}>

@@ -1,33 +1,49 @@
 # WC26 HUB — CLAUDE.md
 
-Application web pour la Coupe du Monde 2026 : stats, analyses et pronostics communautaires.
+Application web pour la Coupe du Monde 2026 : hub communautaire de stats, analyses, pronostics et paris sportifs autour des 48 équipes et 104 matchs du tournoi.
 
-> **État au 17 mai 2026** : le visuel a été entièrement refait à partir du design `WC2026.zip` (light éditorial). L'UI tourne en mode SPA avec données factices. Le branchement Supabase / API-Football n'est PAS encore reconnecté à la nouvelle UI — toute la plomberie data existe dans `lib/`, `supabase/` et `app/api/` mais n'est plus appelée par les vues. Voir « Statut data » plus bas.
->
-> **Audit post-port (commit `8c16fc2`)** : supprimé `proxy.ts` (middleware Supabase mort), retiré Tailwind (jamais réimporté après le port), supprimé `lib/types.ts` + `lib/supabase/client.ts` (orphelins), lazy-loadé 8 vues lourdes via `next/dynamic`.
->
-> **Auth Supabase (commit `b94e4b7`)** : nouveau bouton « Connexion » dans la topbar + vue `auth` (Google OAuth + email/mot de passe) → `components/wc26/auth-view.tsx`. `lib/supabase/client.ts` recréé pour le browser. Session suivie via `onAuthStateChange` dans `<App/>`. Bouton « Profil » + pill points + bouton déconnexion (↪) apparaissent une fois connecté.
->
-> **Jeu de pronostics 5/3/0 (commit `4144ac3`)** : système de mise supprimé, remplacé par un pronostic simple (1/N/2 + score exact optionnel). Score exact = 5 pts, bon vainqueur = 3 pts, faux = 0. Vues `prediction` (form par match) + `leaderboard` (classement complet) ajoutées. Backend : `/api/predictions`, `/api/leaderboard`, fonction SQL `place_prediction` dans `supabase/003_predictions.sql`.
->
-> **Scoring automatique** : cron Vercel `/api/cron/score` (daily 23:00 UTC, défini dans `vercel.json`) interroge API-Football, mappe les matchs terminés vers nos `match_id` mock via (home_code, away_code, date), appelle `score_prediction(match_id, real_home, real_away)` qui crédite les profils. Idempotent. Test manuel : `curl http://localhost:3000/api/cron/score -H "Authorization: Bearer $CRON_SECRET"`.
->
-> **Catégorie Paris sportifs** : nouvelle vue `betting` (`components/wc26/betting-view.tsx`) — cards partenaires (Betclic, Winamax, Unibet, PMU, Parions Sport FDJ, Zebet) + cotes 1X2 par match. Les URLs d'affiliation sont **masquées via redirection serveur** : tout clic passe par `/affiliate/<slug>` (route `app/affiliate/[partner]/route.ts`) qui 302 vers l'URL de `AFFILIATE_<SLUG>` en var d'env. Cotes via `/api/odds` (API-Football, cache 30 min, whitelist de bookmakers). **Disclaimers ANJ obligatoires** présents en haut et en bas de la vue.
+**But du projet** : créer la référence francophone pour suivre la CdM 2026 — live scores, effectifs réels, pronostics entre amis, actu filtrée, et monétisation via l'affiliation paris sportifs.
+
+---
+
+> **État au 18 mai 2026** — Mise à jour du CLAUDE.md après session de branchement data.
+
+## Ce qui est connecté à de vraies données (API-Football + Supabase)
+
+| Feature | Endpoint | Statut |
+|---|---|---|
+| Scores phase de groupes | `/api/scores` → API-Football | ✅ live, rafraîchi 60s |
+| Effectifs joueurs | `/api/squad?code=XXX` → API-Football | ✅ 42 équipes, cache 24h |
+| Classement communautaire | `/api/leaderboard` → Supabase | ✅ |
+| Pronostics utilisateurs | `/api/predictions` → Supabase | ✅ |
+| Stats communauté (KPIs accueil) | `/api/community-stats` → Supabase | ✅ rafraîchi 60s |
+| Actu football | `/api/news` → RSS FR (RMC, SoFoot, FootMercato, Figaro) | ✅ cache 15min, filtre WC |
+| Scoring automatique | `/api/cron/score` → Supabase | ✅ cron Vercel 23h UTC |
+| Auth utilisateur | Supabase OAuth + email | ✅ |
+
+## Ce qui reste en mock data
+
+- `ANALYSES`, `FAVORITES`, `MATCH_PROBS`, `H2H`, `SQUADS` (coach/capitaine/formation/ambiance) pour les équipes sans ID API
+- `LINEUPS` (compositions probables) — non connecté à API-Football
+- `FEATURED_PULSE` (sondage communauté accueil)
+- `NEWS` mock — utilisé en fallback si les RSS échouent
+
+---
 
 ## Stack
 
 - **Next.js 16** (App Router) + TypeScript + Turbopack
 - **next/font/local** : Archivo, Archivo Black, JetBrains Mono (woff2 dans `public/fonts/`)
-- **next/dynamic** : les 8 vues hors-home sont lazy-loadées
-- **Supabase** + **API-Football** : présents dans `lib/` et `app/api/` mais non câblés à l'UI actuelle
-- **Vercel** : hébergement + crons (cf. `vercel.json`)
+- **next/dynamic** : toutes les vues hors-home sont lazy-loadées
+- **Supabase** (auth + DB) + **API-Football** (`v3.football.api-sports.io`, clé `API_FOOTBALL_KEY`)
+- **Vercel** : hébergement + crons (`vercel.json`)
 
-(Tailwind / PostCSS ont été retirés à l'audit du 17 mai 2026 — le design s'appuie uniquement sur les CSS vars de `globals.css` + des inline styles.)
+(Pas de Tailwind — inline styles + CSS vars uniquement, c'est volontaire.)
 
 ## Commandes
 
 ```bash
-npm run dev      # Local sur http://localhost:3000 (ou 3004 si 3000 pris)
+npm run dev      # Local sur http://localhost:3000
 npm run build    # Build de production
 npx tsc --noEmit # Vérification TypeScript stricte
 ```
@@ -38,177 +54,149 @@ npx tsc --noEmit # Vérification TypeScript stricte
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-API_FOOTBALL_KEY=
+API_FOOTBALL_KEY=c796bcca11980bc5fd10a39e9ee1e683
 CRON_SECRET=wc26hubsecret2026
 
-# Affiliés paris sportifs — URLs cachées via /affiliate/<slug>
-# Cf. app/affiliate/[partner]/route.ts pour la liste des slugs.
 AFFILIATE_BETCLIC=https://www.betclic.fr/?aff=TON_ID
-AFFILIATE_WINAMAX=https://www.winamax.fr/?aff=TON_ID
-AFFILIATE_UNIBET=https://www.unibet.fr/?aff=TON_ID
+AFFILIATE_WINAMAX=https://www.winamax.fr/parrain?code=CTTPLL
+AFFILIATE_UNIBET=https://www.unibet.fr/inscription/?campaign=120526&parrain=0E7660EB5C7F9211
 AFFILIATE_PMU=https://www.pmu.fr/?aff=TON_ID
-AFFILIATE_FDJ=https://www.parionssport.fdj.fr/?aff=TON_ID
-AFFILIATE_ZEBET=https://www.zebet.fr/?aff=TON_ID
-AFFILIATE_NETBET=https://www.netbet.fr/?aff=TON_ID
-AFFILIATE_BWIN=https://sports.bwin.fr/?aff=TON_ID
 ```
 
-## Architecture actuelle (post-port du design)
+## Architecture SPA
 
-Le site est un **SPA mono-page** : `app/page.tsx` ne fait que rendre `<App/>` (composant client). La navigation se fait par état React interne `view` dans `<App/>` — l'URL reste sur `/`.
+Le site est un **SPA mono-page** : `app/page.tsx` rend `<App/>`. L'URL reste `/`, la navigation est un état React `view` dans `<App/>`.
+
+```
+View = 'home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups'
+      | 'live' | 'predictions' | 'prediction' | 'leaderboard'
+      | 'betting' | 'agent' | 'profile' | 'auth'
+```
 
 ```
 app/
-  page.tsx                 # Rend <App/> (composant client)
-  layout.tsx               # Charge les fonts via next/font/local
-  globals.css              # Tokens de design (--paper, --ink, --lime…) + utilities (.display, .mono, .chip, .pill-btn, .card, marquee, pulse)
-  api/                     # Routes API conservées (orphelines pour l'instant)
-    matches/sync/route.ts  # Sync API-Football → Supabase
-    pronostics/route.ts    # CRUD pronostics
-    cron/score/route.ts    # Scoring automatique
-  auth/callback/route.ts   # OAuth Supabase
+  page.tsx
+  layout.tsx
+  globals.css                   # tokens CSS + utilities
+  api/
+    news/route.ts               # RSS FR (RMC/SoFoot/FootMercato/Figaro) → NewsItem[]
+    scores/route.ts             # API-Football scores phase de groupes
+    squad/route.ts              # API-Football effectifs → SquadPlayer[]
+    community-stats/route.ts    # Supabase stats KPI accueil
+    odds/route.ts               # API-Football cotes bookmakers
+    predictions/route.ts        # CRUD pronostics Supabase
+    leaderboard/route.ts        # Classement Supabase
+    cron/score/route.ts         # Scoring auto (cron Vercel)
+    matches/sync/route.ts       # Sync API-Football → Supabase
+  affiliate/[partner]/route.ts  # Redirection affilié (302, URL masquée)
+  auth/callback/route.ts        # OAuth Supabase
 
-components/wc26/           # Tout le design porté 1:1 du ZIP (14 modules JSX → 9 fichiers TSX)
-  data.ts                  # Mock data : TEAMS (48 nations), MATCHES, CALENDAR, FEATURED, FEATURED_PULSE,
-                           # ANALYSES, FAVORITES, NEWS, MATCH_PROBS, H2H, SQUADS, PROFILE,
-                           # TEAM_STATS, LINEUPS, PREDICTORS, GROUPS, STANDINGS, VENUES,
-                           # STAGE_INFO, TZ_OFFSET, TZ_LABEL, toParis(), phaseGroup()
-  flags.tsx                # SVG drapeaux par code (FRA, BRA, ARG, POR, ESP, ENG, GER, NED, MEX, USA, CAN, JPN)
-  ui-primitives.tsx        # Flag, TeamBadge, StatRow, FormDots, Marquee, Pitch, LogoMark, ImagePlaceholder, PALETTE
-  main-views.tsx           # HeroFeatured, UpcomingStrip, AnalysesGrid, TeamsView (avec comparateur),
-                           # MatchView (avec lineup + paris), PredictionsView, MatchPreviewBlock
-  home-sections.tsx        # FavoritesSection, NewsSection
-  team-detail.tsx          # TeamDetailView (effectif, infirmerie, agenda…), ProfileView (badges, donut, chart)
-  calendar-view.tsx        # CalendarView avec filtres (phase / groupe / équipe), conversions de fuseaux
-  groups-view.tsx          # GroupsView (12 poules) + GroupDetail
-  live-view.tsx            # LiveView : terrain animé, chat live, paris live, fil du match
-  app.tsx                  # <App/> racine : TopBar, Marquee, Footer, CommunityCallout, routing interne
+components/wc26/
+  data.ts           # Mock data : 48 équipes, CALENDAR (104 matchs), GROUPS, etc.
+  flags.tsx         # SVG drapeaux
+  ui-primitives.tsx # Flag, TeamBadge, StatRow, Pitch, LogoMark, ImagePlaceholder, PALETTE
+  app.tsx           # Shell SPA : TopBar (9 onglets), Marquee, Footer, CommunityCallout
+  main-views.tsx    # HeroFeatured (FRA · chrono live), UpcomingStrip (CALENDAR trié),
+                    # AnalysesGrid, TeamsView, MatchView, PredictionsView
+  home-sections.tsx # FavoritesSection, NewsSection (RSS + images réelles)
+  team-detail.tsx   # TeamDetailView (joueurs API-Football + photos), ProfileView
+  calendar-view.tsx # CalendarView (filtres phase/groupe/équipe, fuseaux horaires)
+  groups-view.tsx   # 12 poules + scores live via API-Football (overlay 60s)
+  live-view.tsx     # Liste matchs J1 → LiveMatchDetail (terrain, chat, events)
+  betting-view.tsx  # 4 partenaires affiliés (Betclic, Winamax, Unibet, PMU)
+  agent-view.tsx    # Placeholder Agent IA (à connecter)
+  auth-view.tsx     # Login / inscription Supabase
+  prediction-view.tsx   # Form pronostic par match
+  leaderboard-view.tsx  # Classement complet
 
-lib/                       # CONSERVÉ mais non utilisé par la nouvelle UI
-  types.ts                 # Types Match, Pronostic… (à harmoniser avec components/wc26/data.ts)
-  api-football.ts          # Wrapper API-Football
-  supabase/client.ts       # Client navigateur
-  supabase/server.ts       # Client serveur/SSR
+lib/
+  api-football.ts       # Wrapper base URL API-Football
+  supabase/client.ts    # Client navigateur Supabase
+  supabase/server.ts    # Client serveur/SSR Supabase
+  db-types.ts           # Types Profile, Prediction
 
 supabase/
-  001_initial.sql          # Schéma : matches, profiles, pronostics, vue classement
-
-public/fonts/              # Archivo 900, Archivo Black 400, JetBrains Mono 600 — toutes variantes unicode
-
-docs/superpowers/specs/    # Specs des refontes
-  2026-05-16-wc2026-design-port-design.md   # Brief du port de design
+  001_initial.sql        # Schéma : matches, profiles, pronostics, vue classement
+  003_predictions.sql    # Système 5/3/0 + place_prediction + score_prediction
 ```
 
-### Convention SPA importante
+## Données clés
 
-- **Une seule URL** : tout est sur `/`. Les vues changent via `setView('home' | 'teams' | 'team' | 'match' | 'calendar' | 'groups' | 'live' | 'predictions' | 'profile')` dans `<App/>`.
-- **Pas de routes Next.js** pour `/matchs`, `/stats`, `/paris`, etc. — elles ont été supprimées.
-- Si tu dois ajouter une vraie route Next.js (ex : `/auth/login`), c'est un choix d'architecture à valider d'abord.
+### Hero accueil
+- Affiche le **premier match de la France** (FRA vs SEN, 15 juin 2026, 15h00 Dallas)
+- Chrono "Coup d'envoi dans" calculé dynamiquement depuis la date/heure UTC réelle du match
+
+### Bandeau "Prochains matchs"
+- Branché sur `CALENDAR` (104 matchs), trié chronologiquement, filtre `date >= aujourd'hui`
+- "Tout le calendrier →" ouvre la vue Calendrier
+
+### Actu football
+- 4 flux RSS français : RMC Sport, So Foot, Foot Mercato, Le Figaro Sport
+- Filtre WC2026 par mots-clés (coupe du monde, mondial, 2026, FIFA, noms de stars…)
+- Images réelles depuis les flux ; fallback placeholder coloré si hotlinking bloqué
+
+### Effectifs équipes (API-Football)
+- Route `/api/squad?code=FRA` → `players/squads?team={id}` (cache 24h)
+- 42 équipes mappées, affichage photo + numéro + nom + âge + poste
+- 6 équipes sans ID connu (USA, CAN, NZL, ECU, COD, CPV) → données mock
+
+### Scores live (API-Football)
+- Route `/api/scores` → fixture statistics WC2026
+- Overlay dans `GroupsView` rafraîchi toutes les 60s
+- Scores live = chiffres rouges + badge LIVE + minutage rouge
+
+### Paris sportifs (affiliés)
+- 4 partenaires : Betclic, Winamax, Unibet, PMU
+- URLs masquées via `/affiliate/<slug>` → var d'env `AFFILIATE_XXX`
+- Disclaimers ANJ obligatoires présents
+
+### Pronostics (jeu communautaire)
+- Score exact = 5 pts · Bon vainqueur = 3 pts · Faux = 0
+- Verrouillé le jour du match (🔒 affiché dans le calendrier)
+- Scoring déclenché par cron Vercel 23h UTC via `score_prediction()`
+
+### Agent IA
+- Vue `agent` : placeholder complet (UI chat, suggestions, input grisé)
+- À connecter par l'utilisateur ultérieurement
+
+## Système de points
+
+| Résultat | Points |
+|---|---|
+| Score exact | 5 pts |
+| Bon vainqueur | 3 pts |
+| Mauvais pronostic | 0 pt |
+
+## Déploiement
+
+- **Local** : `npm run dev` → http://localhost:3000
+- **Vercel** : déployer uniquement sur demande explicite de l'utilisateur (jamais de push automatique)
+- Variables d'env à ajouter sur Vercel : `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `API_FOOTBALL_KEY`, `CRON_SECRET`, `AFFILIATE_*`
 
 ## Design tokens (light éditorial)
-
-Tous dans `app/globals.css`, exposés en CSS vars :
 
 | Var | Valeur | Usage |
 |---|---|---|
 | `--paper` | `#FFFFFF` | Fond principal |
-| `--paper-2` | `#F4F2EE` | Fond secondaire (lignes, placeholders) |
+| `--paper-2` | `#F4F2EE` | Fond secondaire |
 | `--ink` | `#0A0A0A` | Texte / bordures |
 | `--line` | `#E8E4DE` | Bordures discrètes |
 | `--muted` | `#6B6660` | Texte secondaire |
-| `--lime` | `#C8FF00` | Accent principal (chips, CTA) |
+| `--lime` | `#C8FF00` | Accent principal |
 | `--blue` | `#0033FF` | Accent secondaire |
 | `--red` | `#E10600` | Live / alerte |
 | `--purple` | `#6B2FB5` | Tag tactique |
 | `--magenta` | `#FF0080` | Tag communauté |
 
-Aussi exposés en TypeScript via `PALETTE` dans `components/wc26/ui-primitives.tsx`.
+Aussi disponibles en TypeScript via `PALETTE` dans `ui-primitives.tsx`.
 
-**Typo** :
-- `.display` → Archivo Black, uppercase, letter-spacing -0.02em — pour les gros titres
-- `.mono` → JetBrains Mono — pour les chiffres et codes
-- Body par défaut → Archivo
-
-**Composants CSS** : `.chip`, `.pill-btn`, `.pill-btn.solid`, `.card`, `.placeholder`, `.h-scroll`, `.marquee-track`, animation `pulse`.
-
-## Source du design (référence)
-
-Le design original est dans le ZIP **`/Users/clementctt/Downloads/WC2026.zip`** — extrait précédemment dans `/tmp/WC2026_design/WC26-Hub/`. C'est la **source de vérité visuelle**. Pour toute modification de design ou ajout de section :
-
-1. Regarde d'abord si le truc existait déjà dans `/tmp/WC2026_design/WC26-Hub/js/*.jsx`
-2. Préserve la palette, la typo, les espacements, les patterns de composants
-3. Le port a été **littéral** (option B validée par l'utilisateur) — pas de refactor "idiomatic Next.js" non demandé
-
-Mapping fichier ZIP → fichier TSX :
-
-| ZIP | TSX |
-|---|---|
-| `js/01-tweaks-panel.jsx` | **non porté** (dev tool de prototypage, retiré volontairement) |
-| `js/02-flags.jsx` | `components/wc26/flags.tsx` |
-| `js/03-wc26-data.jsx` + `04-…-extra.jsx` + `05-calendar-data.jsx` + `06-groups-data.jsx` | `components/wc26/data.ts` (consolidé) |
-| `js/07-ui-primitives.jsx` + `ImagePlaceholder` de `09` | `components/wc26/ui-primitives.tsx` |
-| `js/08-main-views.jsx` | `components/wc26/main-views.tsx` |
-| `js/09-views-extra.jsx` (Favoris/News) | `components/wc26/home-sections.tsx` |
-| `js/10-team-detail.jsx` | `components/wc26/team-detail.tsx` |
-| `js/11-calendar-view.jsx` | `components/wc26/calendar-view.tsx` |
-| `js/12-groups-view.jsx` | `components/wc26/groups-view.tsx` |
-| `js/13-live-view.jsx` | `components/wc26/live-view.tsx` |
-| `js/14-app.jsx` | `components/wc26/app.tsx` (TopBar, Footer, CommunityCallout + routing SPA) |
-
-## Statut data (à câbler plus tard)
-
-L'utilisateur a explicitement dit « on verra plus tard » pour le branchement data. Toute la plomberie existe :
-
-- **Auth Supabase** : `app/auth/callback/route.ts`, `lib/supabase/{client,server}.ts` — pas de page login/signup côté UI pour l'instant
-- **Sync matchs** : `app/api/matches/sync/route.ts` + cron Vercel toutes les 6h → écrit dans `matches`
-- **Pronostics** : `app/api/pronostics/route.ts` (CRUD) + `app/api/cron/score/route.ts` (scoring auto)
-- **Schéma DB** : `supabase/001_initial.sql` — tables `matches`, `profiles`, `pronostics` + vue `classement`
-
-Pour reconnecter quand le moment viendra :
-
-1. Décider quelle vue affiche du vrai data (Calendar → `matches` ; Predictions → `pronostics` ; Profil → `profiles` ; Live → API-Football endpoint live)
-2. Remplacer les imports de `components/wc26/data.ts` par des fetchs serveur ou des Server Components
-3. Garder le mock data en fallback pour les sections sans équivalent en base (News, Analyses, Marquee, FavoritesSection, CommunityCallout)
-4. Réintroduire les pages auth (`/profil/login`, `/profil/signup`) sous forme de routes dédiées OU de vues `auth` dans le SPA
-
-## Système de points (rappel data)
-
-| Résultat | Points |
-|---|---|
-| Score exact | 3 pts |
-| Bon vainqueur | 1 pt |
-| Mauvais pronostic | 0 pt |
-
-Scoring déclenché par le cron `/api/cron/score` (toutes les 10 min sur Vercel).
-
-## Synchronisation des matchs (rappel data)
-
-```bash
-curl -X GET http://localhost:3000/api/matches/sync \
-  -H "Authorization: Bearer wc26hubsecret2026"
-```
-
-En prod Vercel l'appelle toutes les 6h.
-
-## Déploiement
-
-1. Push sur GitHub
-2. Importer sur vercel.com
-3. Ajouter les 5 variables d'environnement
-4. Configurer les URLs Supabase (Auth > URL Configuration)
-5. Lancer la synchro initiale des matchs
-
-## Préférences utilisateur (vibe coding)
-
-- **Ne sait pas coder**, fait du vibe coding avec Claude. Va à l'essentiel, propose des choix clairs, évite le jargon technique gratuit.
-- **Veut le design EXACTEMENT identique au ZIP** : pas de réinterprétation, pas de "j'ai amélioré ça au passage". Le ZIP est la vérité.
-- **Aime aller vite** : a refusé le brainstorming long et a demandé « implémentation direct » dès qu'il avait validé l'approche.
-- **Skill brainstorming superpowers** activé : avant tout vrai travail créatif/changement de design, suivre le flow (questions ciblées, propositions A/B/C, doc de spec). Mais ne pas s'éterniser — l'utilisateur coupe court vite.
+**Typo** : `.display` → Archivo Black · `.mono` → JetBrains Mono · body → Archivo
 
 ## À ne PAS faire
 
-- Repasser le site en dark theme (la décision « light éditorial » a été validée et commitée — voir `707aacd`)
-- Recréer les pages `/matchs`, `/stats`, `/paris`, `/classement`, `/profil` en tant que routes Next.js (volontairement supprimées au profit du SPA)
-- Remplacer les inline styles par du Tailwind sans demander (le design utilise des inline styles + CSS vars, c'est volontaire)
-- Lancer un branchement Supabase sans valider d'abord ce qui doit être câblé (« on verra plus tard » est la consigne actuelle)
-- Réintroduire `Math.random()` dans des composants rendus côté serveur (cause une erreur d'hydratation — voir le fix `useId()` dans `ImagePlaceholder`)
+- Passer en dark theme (décision validée : light éditorial uniquement)
+- Créer des routes Next.js pour `/matchs`, `/stats`, etc. (tout est SPA sur `/`)
+- Remplacer les inline styles par Tailwind (volontaire)
+- Push sur Vercel sans demande explicite de l'utilisateur
+- Réintroduire `Math.random()` côté serveur (cause hydratation — fix `useId()` dans `ImagePlaceholder`)
+- Committer sans que l'utilisateur le demande

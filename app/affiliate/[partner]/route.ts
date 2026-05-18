@@ -6,8 +6,8 @@ import { NextResponse } from 'next/server'
 
 const AFFILIATE_URLS: Record<string, string> = {
   betclic:  process.env.AFFILIATE_BETCLIC  ?? 'https://www.betclic.fr/',
-  winamax:  process.env.AFFILIATE_WINAMAX  ?? 'https://www.winamax.fr/',
-  unibet:   process.env.AFFILIATE_UNIBET   ?? 'https://www.unibet.fr/',
+  winamax:  process.env.AFFILIATE_WINAMAX  ?? 'https://www.winamax.fr/parrain?code=CTTPLL',
+  unibet:   process.env.AFFILIATE_UNIBET   ?? 'https://www.unibet.fr/inscription/?campaign=120526&parrain=0E7660EB5C7F9211',
   pmu:      process.env.AFFILIATE_PMU      ?? 'https://www.pmu.fr/',
   fdj:      process.env.AFFILIATE_FDJ      ?? 'https://www.parionssport.fdj.fr/',
   zebet:    process.env.AFFILIATE_ZEBET    ?? 'https://www.zebet.fr/',

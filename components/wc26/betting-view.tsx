@@ -20,12 +20,10 @@ type Partner = {
 }
 
 const PARTNERS: Partner[] = [
-  { slug:'betclic', name:'BETCLIC',  bg:'#E60000', ink:'#FFFFFF', bonus:'JUSQU’À 100€ OFFERTS',  tagline:'Le n°1 français du pari en ligne' },
-  { slug:'winamax', name:'WINAMAX',  bg:'#FFC500', ink:'#000000', bonus:'JUSQU’À 100€ OFFERTS',  tagline:'Boostez vos cotes WC26' },
-  { slug:'unibet',  name:'UNIBET',   bg:'#147B45', ink:'#FFFFFF', bonus:'100€ REMBOURSÉS',           tagline:'Cash-out instantané sur tous les matchs' },
-  { slug:'pmu',     name:'PMU',      bg:'#0033FF', ink:'#FFFFFF', bonus:'150€ DE BIENVENUE',         tagline:'Multi+ et combiné boostés' },
-  { slug:'fdj',     name:'PARIONS SPORT',  bg:'#FF6E00', ink:'#FFFFFF', bonus:'100€ OFFERTS',        tagline:'L’opérateur officiel FDJ' },
-  { slug:'zebet',   name:'ZEBET',    bg:'#0A0A0A', ink:'#C8FF00', bonus:'JUSQU’À 150€ OFFERTS', tagline:'Cotes boostées chaque jour' },
+  { slug:'betclic', name:'BETCLIC', bg:'#E60000', ink:'#FFFFFF', bonus:"JUSQU'À 100€ OFFERTS", tagline:"Le n°1 français du pari en ligne" },
+  { slug:'winamax', name:'WINAMAX', bg:'#FFC500', ink:'#000000', bonus:"JUSQU'À 100€ OFFERTS", tagline:'Boostez vos cotes WC26' },
+  { slug:'unibet',  name:'UNIBET',  bg:'#147B45', ink:'#FFFFFF', bonus:'100€ REMBOURSÉS',       tagline:'Cash-out instantané sur tous les matchs' },
+  { slug:'pmu',     name:'PMU',     bg:'#0033FF', ink:'#FFFFFF', bonus:'150€ DE BIENVENUE',     tagline:'Multi+ et combiné boostés' },
 ]
 
 type OddRow = {

@@ -3,12 +3,23 @@
 // Additional home sections: Favorites + News
 // Ported 1:1 from design/js/09-views-extra.jsx
 
+import { useState, useEffect, useCallback } from 'react'
 import { TEAMS, FAVORITES, NEWS } from './data'
 import { Flag, ImagePlaceholder, PALETTE } from './ui-primitives'
+import type { NewsItem } from '@/app/api/news/route'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 const teamByCode = (c: string) => TEAMS.find(t => t.code===c)!
+
+function NewsImg({ src, color, label, h, fallbackLabel }: { src: string | null; color: string; label?: string; fallbackLabel?: string; h: number | string }) {
+  const [failed, setFailed] = useState(false)
+  const onErr = useCallback(() => setFailed(true), [])
+  if (src && !failed) {
+    return <img src={src} alt={label ?? ''} onError={onErr} style={{ width:'100%', height:h, objectFit:'cover', display:'block' }}/>
+  }
+  return <ImagePlaceholder kind="news" color={color} label={fallbackLabel ?? label} h={h}/>
+}
 
 export function FavoritesSection({ onOpenTeam }: { onOpenTeam: (code: string) => void }) {
   const max = Math.max(...FAVORITES.map(f => f.community))
@@ -77,7 +88,35 @@ export function FavoritesSection({ onOpenTeam }: { onOpenTeam: (code: string) =>
 }
 
 export function NewsSection() {
-  const [top, ...rest] = NEWS
+  const [articles, setArticles] = useState<NewsItem[]>([])
+  const [loading, setLoading]   = useState(true)
+
+  useEffect(() => {
+    fetch('/api/news')
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { articles: NewsItem[] } | null) => {
+        if (d?.articles?.length) setArticles(d.articles)
+      })
+      .catch(() => {/* silently fall back to mock */})
+      .finally(() => setLoading(false))
+  }, [])
+
+  // Fall back to mock data while loading or if API returned nothing
+  const mockFallback = NEWS.map((n, i) => ({
+    id: String(i),
+    title: n.title,
+    excerpt: n.excerpt,
+    link: '',
+    pubDate: '',
+    time: n.time,
+    tag: n.tag,
+    color: n.color,
+    image: null,
+  })) as NewsItem[]
+
+  const items = (!loading && articles.length > 0) ? articles : mockFallback
+  const [top, ...rest] = items
+
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'56px 32px' }}>
       <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:24 }}>
@@ -85,47 +124,73 @@ export function NewsSection() {
           <span className="chip" style={{ background:'var(--ink)', color: PALETTE.lime }}>● ACTU</span>
           <h2 className="display" style={{ fontSize:48, margin:'10px 0 0' }}>L&apos;actu football</h2>
         </div>
-        <a style={{ fontSize:12, fontWeight:700, color:'var(--muted)', letterSpacing:'0.06em', textTransform:'uppercase' }}>Toutes les news →</a>
+        {!loading && articles.length > 0 && (
+          <span style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.06em' }}>
+            LIVE · RMC SPORT · SO FOOT · FOOT MERCATO · LE FIGARO
+          </span>
+        )}
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:16 }}>
-        <article className="card" style={{ overflow:'hidden', cursor:'pointer' }}>
-          <ImagePlaceholder kind={top.img} color={top.color}
-            label={'PHOTO · ' + top.tag.toLowerCase()}
-            team={teamByCode(top.team)} h={320}/>
-          <div style={{ padding:24 }}>
-            <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:14 }}>
-              <span className="chip" style={{ background: top.color, color:'#FFFFFF' }}>{top.tag}</span>
-              <span style={{ fontSize:11, fontWeight:700, color:'var(--muted)' }}>{top.time} · {top.views} vues</span>
-            </div>
-            <h3 className="display" style={{ fontSize:30, lineHeight:1.05, margin:'0 0 12px', textTransform:'none', letterSpacing:'-0.01em' }}>{top.title}</h3>
-            <p style={{ fontSize:14, color:'var(--muted)', lineHeight:1.5, margin:0 }}>{top.excerpt}</p>
+      {loading ? (
+        <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:16 }}>
+          <div className="card" style={{ height:420, background:'var(--paper-2)', animation:'pulse 1.4s infinite' }}/>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="card" style={{ height:108, background:'var(--paper-2)', animation:'pulse 1.4s infinite' }}/>
+            ))}
           </div>
-        </article>
-
-        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          {rest.slice(0,5).map((a) => (
-            <article key={a.id} className="card" style={{
-              display:'grid', gridTemplateColumns:'120px 1fr', gap:0, overflow:'hidden', cursor:'pointer',
-              transition:'transform .15s', minHeight:108,
-            }}
-            onMouseEnter={e => (e.currentTarget.style.transform='translateX(3px)')}
-            onMouseLeave={e => (e.currentTarget.style.transform='translateX(0)')}>
-              <div style={{ borderRight:'1.5px solid var(--ink)' }}>
-                <ImagePlaceholder kind={a.img} color={a.color}
-                  team={teamByCode(a.team)} h={'100%'}/>
-              </div>
-              <div style={{ padding:'14px 16px', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
-                <div>
-                  <span className="chip" style={{ background: a.color, color:'#FFFFFF', fontSize:9, padding:'2px 8px' }}>{a.tag}</span>
-                  <h4 style={{ fontSize:14, fontWeight:800, lineHeight:1.25, margin:'8px 0 0', textWrap:'pretty' }}>{a.title}</h4>
-                </div>
-                <div style={{ fontSize:10, fontWeight:600, color:'var(--muted)', marginTop:8 }}>{a.time} · {a.views} vues</div>
-              </div>
-            </article>
-          ))}
         </div>
-      </div>
+      ) : (
+        <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:16 }}>
+          {/* Article principal */}
+          <a
+            href={top.link || undefined}
+            target={top.link ? '_blank' : undefined}
+            rel="noopener noreferrer"
+            className="card"
+            style={{ overflow:'hidden', cursor:'pointer', textDecoration:'none', color:'var(--ink)', display:'block' }}
+          >
+            <NewsImg src={top.image} color={top.color} fallbackLabel={'RSS · ' + top.tag} h={320}/>
+            <div style={{ padding:24 }}>
+              <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:14 }}>
+                <span className="chip" style={{ background: top.color, color:'#FFFFFF' }}>{top.tag}</span>
+                <span style={{ fontSize:11, fontWeight:700, color:'var(--muted)' }}>{top.time}</span>
+              </div>
+              <h3 className="display" style={{ fontSize:30, lineHeight:1.05, margin:'0 0 12px', textTransform:'none', letterSpacing:'-0.01em' }}>{top.title}</h3>
+              <p style={{ fontSize:14, color:'var(--muted)', lineHeight:1.5, margin:0 }}>{top.excerpt}</p>
+            </div>
+          </a>
+
+          {/* Articles secondaires */}
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {rest.slice(0,5).map((a) => (
+              <a
+                key={a.id}
+                href={a.link || undefined}
+                target={a.link ? '_blank' : undefined}
+                rel="noopener noreferrer"
+                className="card"
+                style={{
+                  display:'grid', gridTemplateColumns:'120px 1fr', gap:0, overflow:'hidden',
+                  transition:'transform .15s', minHeight:108, textDecoration:'none', color:'var(--ink)',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.transform='translateX(3px)')}
+                onMouseLeave={e => (e.currentTarget.style.transform='translateX(0)')}>
+                <div style={{ borderRight:'1.5px solid var(--ink)', overflow:'hidden' }}>
+                  <NewsImg src={a.image} color={a.color} h="100%"/>
+                </div>
+                <div style={{ padding:'14px 16px', display:'flex', flexDirection:'column', justifyContent:'space-between' }}>
+                  <div>
+                    <span className="chip" style={{ background: a.color, color:'#FFFFFF', fontSize:9, padding:'2px 8px' }}>{a.tag}</span>
+                    <h4 style={{ fontSize:14, fontWeight:800, lineHeight:1.25, margin:'8px 0 0', textWrap:'pretty' }}>{a.title}</h4>
+                  </div>
+                  <div style={{ fontSize:10, fontWeight:600, color:'var(--muted)', marginTop:8 }}>{a.time}</div>
+                </div>
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   )
 }
