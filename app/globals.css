@@ -57,5 +57,14 @@ button { font-family: inherit; cursor: pointer; }
 /* live pulse — used by Live tab + Live view */
 @keyframes pulse { 0%,100% { transform:scale(1); opacity:1; } 50% { transform:scale(1.7); opacity:0.35; } }
 
+/* agent IA — typing dots */
+@keyframes wc26-blink { 0%,100% { opacity: 0.25; } 50% { opacity: 1; } }
+
+/* agent IA — bulle qui slide depuis le bas + fade-in */
+@keyframes wc26-slide-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* big chevron */
 .big-arrow { width: 14px; height: 14px; display: inline-block; }

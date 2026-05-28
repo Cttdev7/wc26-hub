@@ -33,15 +33,37 @@ function matchUTCms(dateISO: string, time: string, vKey: string): number {
 const FRA_HERO = CALENDAR.filter(m => m.home === 'FRA' || m.away === 'FRA')
   .sort((a, b) => a.date.localeCompare(b.date))[0]
 
-export function HeroFeatured({ onOpenMatch }: { onOpenMatch: (id: string) => void }) {
-  const m = FRA_HERO
+export function HeroFeatured({
+  onOpenMatch,
+  onOpenTeam,
+  onOpenBetting,
+}: {
+  onOpenMatch: (id: string) => void
+  onOpenTeam: (code: string) => void
+  onOpenBetting: () => void
+}) {
+  // Match d'ouverture de la Coupe du Monde 2026
+  const m = CALENDAR.find(x => x.id === 'gA1') ?? FRA_HERO
   const home = teamByCode(m.home)
   const away = teamByCode(m.away)
   const pulse = FEATURED_PULSE
 
+  // Pourcentages communautaires calculés à partir des cotes du match
+  // (1/cote normalisé pour que ça somme à 100 %)
+  const invH = 1 / m.odds.home
+  const invD = 1 / m.odds.draw
+  const invA = 1 / m.odds.away
+  const sumInv = invH + invD + invA
+  const pctH = Math.round((invH / sumInv) * 100)
+  const pctD = Math.round((invD / sumInv) * 100)
+  const pctA = 100 - pctH - pctD
+
   const targetUTC = matchUTCms(m.date, m.time, m.vKey ?? 'DAL')
-  const [now, setNow] = useState(() => Date.now())
+  // Init à targetUTC → totalSec = 0 au SSR, identique côté client au premier render (pas de mismatch).
+  // Le useEffect resync immédiatement avec Date.now() après hydratation.
+  const [now, setNow] = useState(targetUTC)
   useEffect(() => {
+    setNow(Date.now())
     const t = setInterval(() => setNow(Date.now()), 1000)
     return () => clearInterval(t)
   }, [])
@@ -51,6 +73,14 @@ export function HeroFeatured({ onOpenMatch }: { onOpenMatch: (id: string) => voi
   const mins = Math.floor((totalSec % 3600) / 60)
   const secs = totalSec % 60
   const pad = (n: number) => String(n).padStart(2, '0')
+
+  // Style commun pour les blocs équipe cliquables
+  const teamBlockBase: React.CSSProperties = {
+    display:'flex', flexDirection:'column', gap:18,
+    background:'transparent', border:'none', padding:0,
+    cursor:'pointer', fontFamily:'inherit', textAlign:'left',
+    transition:'transform .15s',
+  }
 
   return (
     <section style={{
@@ -63,31 +93,59 @@ export function HeroFeatured({ onOpenMatch }: { onOpenMatch: (id: string) => voi
       }}>
         <div>
           <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:18 }}>
-            <span className="chip" style={{ background: PALETTE.lime, color:'var(--ink)' }}>● Match à la une</span>
+            <span className="chip" style={{ background: PALETTE.lime, color:'var(--ink)' }}>● Match d&apos;ouverture WC26</span>
             <span style={{ fontSize:12, color:'var(--muted)', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' }}>
               Groupe {m.group} · {m.stage} · {m.venue}
             </span>
           </div>
 
           <div style={{ display:'grid', gridTemplateColumns:'1fr auto 1fr', alignItems:'center', gap:24, marginBottom:32 }}>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', gap:18 }}>
+            <button
+              type="button"
+              onClick={() => onOpenTeam(home.code)}
+              style={{ ...teamBlockBase, alignItems:'flex-start' }}
+              onMouseEnter={e => (e.currentTarget.style.opacity='0.85')}
+              onMouseLeave={e => (e.currentTarget.style.opacity='1')}
+              aria-label={`Voir la page de ${home.name}`}
+            >
               <Flag team={home} w={132} h={88} />
               <div>
                 <div className="display" style={{ fontSize:96, color: PALETTE.ink }}>{home.code}</div>
                 <div style={{ fontSize:14, fontWeight:700, color:'var(--muted)' }}>{home.name.toUpperCase()}</div>
               </div>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10 }}>
-              <div className="display" style={{ fontSize:64, color: PALETTE.red }}>VS</div>
-              <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.1em' }}>{fmtDate(m.date)} · {m.time}</div>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:18 }}>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onOpenMatch(m.id)}
+              style={{
+                display:'flex', flexDirection:'column', alignItems:'center', gap:10,
+                background:'transparent', border:'none', padding:'12px 16px', borderRadius:14,
+                cursor:'pointer', fontFamily:'inherit',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background='var(--paper-2)')}
+              onMouseLeave={e => (e.currentTarget.style.background='transparent')}
+              aria-label="Voir la page du match"
+            >
+              <div className="display" style={{ fontSize:64, color: PALETTE.red, pointerEvents:'none' }}>VS</div>
+              <div style={{ fontSize:11, fontWeight:700, color:'var(--muted)', letterSpacing:'0.1em', pointerEvents:'none' }}>{fmtDate(m.date)} · {m.time}</div>
+              <div style={{ fontSize:9, fontWeight:800, letterSpacing:'0.1em', color: PALETTE.blue, textTransform:'uppercase', pointerEvents:'none' }}>↗ Voir le match</div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onOpenTeam(away.code)}
+              style={{ ...teamBlockBase, alignItems:'flex-end', textAlign:'right' }}
+              onMouseEnter={e => (e.currentTarget.style.opacity='0.85')}
+              onMouseLeave={e => (e.currentTarget.style.opacity='1')}
+              aria-label={`Voir la page de ${away.name}`}
+            >
               <Flag team={away} w={132} h={88} />
               <div style={{ textAlign:'right' }}>
                 <div className="display" style={{ fontSize:96, color: PALETTE.ink }}>{away.code}</div>
                 <div style={{ fontSize:14, fontWeight:700, color:'var(--muted)' }}>{away.name.toUpperCase()}</div>
               </div>
-            </div>
+            </button>
           </div>
 
           <div style={{ display:'flex', alignItems:'center', gap:14, padding:'18px 22px', border:'1.5px solid var(--ink)', borderRadius:14 }}>
@@ -110,7 +168,7 @@ export function HeroFeatured({ onOpenMatch }: { onOpenMatch: (id: string) => voi
             <span className="mono" style={{ fontSize:11, fontWeight:700 }}>{pulse.volume.toLocaleString('fr-FR')} pronostics</span>
           </div>
           <div className="display" style={{ fontSize:26, marginBottom:18, lineHeight:1 }}>Qui gagne ?</div>
-          {([['1 · ' + home.code, pulse.home],['NUL', pulse.draw],['2 · ' + away.code, pulse.away]] as Array<[string, number]>).map(([lbl, pct], i) => (
+          {([['1 · ' + home.code, pctH], ['NUL', pctD], ['2 · ' + away.code, pctA]] as Array<[string, number]>).map(([lbl, pct], i) => (
             <div key={i} style={{ marginBottom:12 }}>
               <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4, fontSize:12, fontWeight:700 }}>
                 <span>{lbl}</span><span className="mono">{pct}%</span>
@@ -120,9 +178,14 @@ export function HeroFeatured({ onOpenMatch }: { onOpenMatch: (id: string) => voi
               </div>
             </div>
           ))}
-          <button onClick={() => onOpenMatch(m.id)} className="pill-btn" style={{ width:'100%', justifyContent:'center', marginTop:12, background:'var(--ink)', color:'var(--paper)' }}>
-            Placer mon pronostic →
-          </button>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:12 }}>
+            <button onClick={() => onOpenMatch(m.id)} className="pill-btn" style={{ justifyContent:'center', background:'var(--ink)', color:'var(--paper)' }}>
+              Pronostiquer →
+            </button>
+            <button onClick={onOpenBetting} className="pill-btn" style={{ justifyContent:'center', background: PALETTE.red, color:'#FFFFFF', border:'1.5px solid var(--ink)' }}>
+              💰 Parier →
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -284,8 +347,38 @@ export function MatchView({
     ? STAGE_INFO[m.stage].label + (m.group && m.group !== '-' ? ' · Groupe ' + m.group : '')
     : m.stage
   const home = teamByCode(m.home), away = teamByCode(m.away)
-  const homeLineup = LINEUPS[m.home]
-  const awayLineup = LINEUPS[m.away]
+
+  type LineupSource = 'api' | 'auto' | 'mock' | 'none'
+  const [homeLineup, setHomeLineup] = useState<any>(LINEUPS[m.home] ?? null)
+  const [awayLineup, setAwayLineup] = useState<any>(LINEUPS[m.away] ?? null)
+  const [homeSource, setHomeSource] = useState<LineupSource>(LINEUPS[m.home] ? 'mock' : 'none')
+  const [awaySource, setAwaySource] = useState<LineupSource>(LINEUPS[m.away] ? 'mock' : 'none')
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async (code: string, setLineup: (l: any) => void, setSource: (s: LineupSource) => void) => {
+      try {
+        const r = await fetch(`/api/lineup?code=${code}`)
+        if (!r.ok) return
+        const d: { lineup: any; source: LineupSource } = await r.json()
+        if (cancelled) return
+        if (d.lineup) {
+          setLineup(d.lineup)
+          setSource(d.source)
+        }
+      } catch { /* fallback sur mock/none */ }
+    }
+    load(m.home, setHomeLineup, setHomeSource)
+    load(m.away, setAwayLineup, setAwaySource)
+    return () => { cancelled = true }
+  }, [m.home, m.away])
+
+  const sourceBadge = (s: LineupSource): { label: string; color: string } | null => {
+    if (s === 'api')  return { label: 'COMPO OFFICIELLE', color: PALETTE.lime }
+    if (s === 'auto') return { label: 'COMPO PROBABLE',   color: PALETTE.blue }
+    if (s === 'mock') return { label: 'COMPO TYPE',       color: PALETTE.purple }
+    return null
+  }
 
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'32px 32px 64px' }}>
@@ -341,9 +434,23 @@ export function MatchView({
             <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:14 }}>
               <h3 className="display" style={{ fontSize:24, margin:0 }}>Compositions probables</h3>
               <div style={{ display:'flex', gap:12, fontSize:11, fontWeight:700, color:'var(--muted)' }}>
-                <span>{home.code} · {homeLineup?.formation || '—'}</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                  {home.code} · {homeLineup?.formation || '—'}
+                  {sourceBadge(homeSource) && (
+                    <span style={{ background: sourceBadge(homeSource)!.color, color:'var(--ink)', padding:'2px 6px', borderRadius:4, fontSize:9, letterSpacing:'0.06em' }}>
+                      {sourceBadge(homeSource)!.label}
+                    </span>
+                  )}
+                </span>
                 <span style={{ color:'var(--line)' }}>|</span>
-                <span>{away.code} · {awayLineup?.formation || '—'}</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                  {away.code} · {awayLineup?.formation || '—'}
+                  {sourceBadge(awaySource) && (
+                    <span style={{ background: sourceBadge(awaySource)!.color, color:'var(--ink)', padding:'2px 6px', borderRadius:4, fontSize:9, letterSpacing:'0.06em' }}>
+                      {sourceBadge(awaySource)!.label}
+                    </span>
+                  )}
+                </span>
               </div>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
@@ -428,6 +535,8 @@ export function PredictionsView({
   user?: { id: string } | null;
 }) {
   type LbRow = { id: string; pseudo: string; total_points: number; total_predictions: number; rang: number }
+  type Tab = 'play' | 'rules' | 'rewards'
+  const [tab, setTab] = useState<Tab>('play')
   const [top, setTop] = useState<LbRow[]>([])
   const [predictions, setPredictions] = useState<Prediction[]>([])
 
@@ -505,14 +614,29 @@ export function PredictionsView({
   return (
     <section style={{ maxWidth:1320, margin:'0 auto', padding:'40px 32px 64px' }}>
       {/* HEADER */}
-      <div style={{ textAlign:'center', marginBottom:32 }}>
+      <div style={{ textAlign:'center', marginBottom:24 }}>
         <span className="chip" style={{ background: PALETTE.lime, color:'var(--ink)' }}>🎯 JEU DU JOUR</span>
-        <h1 className="display" style={{ fontSize:88, margin:'14px 0 12px', lineHeight:0.88 }}>Pronostics WC26</h1>
-        <p style={{ fontSize:16, color:'var(--muted)', maxWidth:620, margin:'0 auto', lineHeight:1.45 }}>
-          Un nouveau match à pronostiquer chaque jour. <strong style={{ color:'var(--ink)' }}>Score exact = 5 pts</strong> ·{' '}
-          <strong style={{ color:'var(--ink)' }}>Bon résultat = 3 pts</strong> · Faux = 0 pt.
-        </p>
+        <h1 className="display" style={{ fontSize:80, margin:'14px 0 12px', lineHeight:0.88 }}>JEUX PRONOSTICS 2026</h1>
       </div>
+
+      {/* ONGLETS — Jouer / Règles / Récompenses / Classement */}
+      <div style={{ display:'flex', justifyContent:'center', marginBottom:32 }}>
+        <div style={{
+          display:'inline-flex', gap:4, padding:5, borderRadius:999,
+          border:'1.5px solid var(--ink)', background:'var(--paper-2)',
+          flexWrap:'wrap',
+        }}>
+          <TabButton active={tab==='play'}    onClick={() => setTab('play')}    icon="🎯" label="Jouer"/>
+          <TabButton active={tab==='rules'}   onClick={() => setTab('rules')}   icon="📖" label="Règles du jeu"/>
+          <TabButton active={tab==='rewards'} onClick={() => setTab('rewards')} icon="💰" label="Récompenses"/>
+          <TabButton active={false}           onClick={onOpenLeaderboard}       icon="🏆" label="Classement"/>
+        </div>
+      </div>
+
+      {tab === 'rules'   && <RulesPanel/>}
+      {tab === 'rewards' && <RewardsPanel/>}
+
+      {tab === 'play' && (<>
 
       {/* CTA principal centré */}
       <div style={{ display:'flex', justifyContent:'center', gap:14, marginBottom:42, flexWrap:'wrap' }}>
@@ -527,12 +651,6 @@ export function PredictionsView({
           {todaysMatches.length > 0
             ? `Jouer aujourd'hui · ${todaysMatches.length} match${todaysMatches.length>1?'s':''}`
             : 'Pas de match aujourd’hui'}
-        </button>
-        <button
-          onClick={onOpenLeaderboard}
-          className="pill-btn"
-          style={{ padding:'18px 32px', fontSize:15, letterSpacing:'0.04em', textTransform:'uppercase' }}>
-          🏆 Classement
         </button>
       </div>
 
@@ -594,15 +712,6 @@ export function PredictionsView({
               )
             })}
           </div>
-
-          {/* Section : matchs du jour sélectionné */}
-          <SelectedDaySection
-            date={selectedDate}
-            matches={matchesByDate.get(selectedDate) ?? []}
-            lock={dayLockState(selectedDate)}
-            predictionByMatch={predictionByMatch}
-            onOpenMatch={onOpenMatch}
-          />
         </div>
 
         {/* CLASSEMENT */}
@@ -637,7 +746,274 @@ export function PredictionsView({
           </div>
         </div>
       </div>
+
+      </>)}
     </section>
+  )
+}
+
+function TabButton({ active, onClick, icon, label }: {
+  active: boolean; onClick: () => void; icon: string; label: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display:'inline-flex', alignItems:'center', gap:8,
+        padding:'10px 18px', borderRadius:999, border:'none',
+        background: active ? PALETTE.ink : 'transparent',
+        color: active ? '#FFFFFF' : 'var(--ink)',
+        fontSize:13, fontWeight:800, letterSpacing:'0.02em',
+        cursor:'pointer', fontFamily:'inherit',
+        transition:'background 0.15s, color 0.15s',
+        whiteSpace:'nowrap',
+      }}
+    >
+      <span style={{ fontSize:14 }}>{icon}</span>
+      <span>{label}</span>
+    </button>
+  )
+}
+
+function RulesPanel() {
+  const STEPS = [
+    { num: '1', title: 'Connecte-toi', text: 'Crée un compte gratuit ou connecte-toi pour participer. Tes pronostics sont liés à ton profil et comptent pour le classement communautaire.' },
+    { num: '2', title: 'Pronostique le score exact', text: 'Pour chaque match disponible, indique le score exact que tu prédis (ex. 2-1). Tu peux pronostiquer autant de matchs que tu veux.' },
+    { num: '3', title: 'Verrouillage le jour J', text: 'Tes pronostics sont automatiquement verrouillés le jour du match (00:00 UTC). Tu ne peux plus les modifier une fois bloqués (icône 🔒 dans le calendrier).' },
+    { num: '4', title: 'Scoring automatique', text: 'Chaque soir à 23h UTC, un script vérifie les résultats finaux et attribue les points correspondants. Ton total se met à jour, ton classement aussi.' },
+  ]
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24, alignItems:'start' }}>
+      {/* Comment jouer */}
+      <div className="card" style={{ padding:'28px 30px' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
+          <span style={{ fontSize:24 }}>🎮</span>
+          <h2 className="display" style={{ fontSize:24, margin:0 }}>Comment ça marche</h2>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+          {STEPS.map(s => (
+            <div key={s.num} style={{ display:'flex', gap:14, alignItems:'flex-start' }}>
+              <div className="display" style={{
+                width:36, height:36, borderRadius:10,
+                background: PALETTE.lime, color:'var(--ink)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                fontSize:18, flexShrink:0, border:'1.5px solid var(--ink)',
+              }}>{s.num}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontSize:14, fontWeight:800, marginBottom:4 }}>{s.title}</div>
+                <div style={{ fontSize:13, color:'var(--muted)', fontWeight:600, lineHeight:1.5 }}>{s.text}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Barème des points */}
+      <div>
+        <div className="card" style={{ padding:'28px 30px', marginBottom:18 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
+            <span style={{ fontSize:24 }}>🧮</span>
+            <h2 className="display" style={{ fontSize:24, margin:0 }}>Barème des points</h2>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            <ScoreRow points={5} color={PALETTE.lime}    title="Score exact"    sub="Tu prédis 2-1, le match finit 2-1 → 5 points"/>
+            <ScoreRow points={3} color={PALETTE.blue}    title="Bon vainqueur"  sub="Tu prédis 2-1, le match finit 3-0 (même vainqueur) → 3 points"/>
+            <ScoreRow points={0} color={PALETTE.red}     title="Faux pronostic" sub="Mauvais vainqueur ou mauvais résultat → 0 point"/>
+          </div>
+        </div>
+
+        {/* Exemples concrets */}
+        <div className="card" style={{ padding:'24px 26px', background:'var(--paper-2)' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+            <span style={{ fontSize:20 }}>💡</span>
+            <h3 className="display" style={{ fontSize:18, margin:0 }}>Exemples</h3>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <ExampleRow predicted="2-1" actual="2-1" points={5} note="Score exact"/>
+            <ExampleRow predicted="2-1" actual="3-0" points={3} note="Bon vainqueur (équipe domicile)"/>
+            <ExampleRow predicted="1-1" actual="0-0" points={3} note="Bon résultat (match nul)"/>
+            <ExampleRow predicted="2-1" actual="1-2" points={0} note="Mauvais vainqueur"/>
+          </div>
+        </div>
+      </div>
+
+      {/* Conseils */}
+      <div className="card" style={{ padding:'24px 26px', gridColumn:'1 / -1', background:'var(--paper)' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:14 }}>
+          <span style={{ fontSize:20 }}>📌</span>
+          <h3 className="display" style={{ fontSize:18, margin:0 }}>À savoir</h3>
+        </div>
+        <ul style={{ margin:0, paddingLeft:20, fontSize:13, color:'var(--muted)', fontWeight:600, lineHeight:1.7 }}>
+          <li>Plus tu pronostiques tôt, plus tu maximises tes chances de cumuler des points sur la durée du tournoi.</li>
+          <li>En cas d&apos;égalité de points en fin de tournoi, c&apos;est le nombre de <strong style={{ color:'var(--ink)' }}>scores exacts</strong> qui départage les ex-aequo.</li>
+          <li>Le classement final est figé après le dernier match (finale du <strong style={{ color:'var(--ink)' }}>19 juillet 2026</strong>).</li>
+          <li>Les pronostics sont gratuits, sans inscription payante ni achat in-app.</li>
+        </ul>
+      </div>
+    </div>
+  )
+}
+
+function ScoreRow({ points, color, title, sub }: { points: number; color: string; title: string; sub: string }) {
+  return (
+    <div style={{
+      display:'grid', gridTemplateColumns:'auto 1fr', gap:16, alignItems:'center',
+      padding:'14px 16px', border:'1.5px solid var(--ink)', borderRadius:12,
+      background:'var(--paper)',
+    }}>
+      <div className="display" style={{
+        width:56, height:56, borderRadius:14,
+        background: color, color: color === PALETTE.red ? '#FFFFFF' : 'var(--ink)',
+        border:'1.5px solid var(--ink)',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        fontSize:24, flexShrink:0,
+      }}>
+        {points}
+        <span style={{ fontSize:12, marginLeft:2, opacity:0.7 }}>pt{points>1?'s':''}</span>
+      </div>
+      <div>
+        <div style={{ fontSize:15, fontWeight:800, marginBottom:2 }}>{title}</div>
+        <div style={{ fontSize:12, color:'var(--muted)', fontWeight:600, lineHeight:1.4 }}>{sub}</div>
+      </div>
+    </div>
+  )
+}
+
+function ExampleRow({ predicted, actual, points, note }: { predicted: string; actual: string; points: number; note: string }) {
+  const color = points === 5 ? PALETTE.lime : points === 3 ? PALETTE.blue : PALETTE.red
+  return (
+    <div style={{
+      display:'grid', gridTemplateColumns:'auto auto 1fr auto', gap:12, alignItems:'center',
+      padding:'10px 14px', borderRadius:10, background:'var(--paper)', border:'1px solid var(--line)',
+    }}>
+      <span className="mono" style={{ fontSize:12, fontWeight:800, background:'var(--ink)', color:'#FFFFFF', padding:'4px 8px', borderRadius:6 }}>
+        Toi : {predicted}
+      </span>
+      <span className="mono" style={{ fontSize:12, fontWeight:800, background:'var(--paper-2)', padding:'4px 8px', borderRadius:6, border:'1px solid var(--line)' }}>
+        Réel : {actual}
+      </span>
+      <span style={{ fontSize:11, color:'var(--muted)', fontWeight:600 }}>{note}</span>
+      <span className="display" style={{
+        fontSize:14, padding:'4px 10px', borderRadius:8,
+        background: color, color: points === 0 ? '#FFFFFF' : 'var(--ink)',
+        border:'1.5px solid var(--ink)',
+      }}>
+        +{points}
+      </span>
+    </div>
+  )
+}
+
+function RewardsPanel() {
+  const PODIUM = [
+    { rank: 1, amount: 500, label: '1ʳᵉ place', medal: '🥇', color: PALETTE.lime,  height: 200 },
+    { rank: 2, amount: 250, label: '2ᵉ place',  medal: '🥈', color: '#E8E4DE',     height: 160 },
+    { rank: 3, amount: 100, label: '3ᵉ place',  medal: '🥉', color: PALETTE.orange, height: 130 },
+  ]
+  return (
+    <div>
+      {/* Bandeau de présentation */}
+      <div className="card" style={{
+        padding:'32px 36px', marginBottom:24, textAlign:'center',
+        background: 'linear-gradient(135deg, var(--paper-2) 0%, var(--paper) 100%)',
+      }}>
+        <span className="chip" style={{ background: PALETTE.yellow, color:'var(--ink)' }}>💰 850 € À GAGNER</span>
+        <h2 className="display" style={{ fontSize:42, margin:'14px 0 10px', lineHeight:1 }}>Le podium WC26</h2>
+        <p style={{ fontSize:15, color:'var(--muted)', maxWidth:540, margin:'0 auto', lineHeight:1.5 }}>
+          À la fin de la Coupe du Monde, les <strong style={{ color:'var(--ink)' }}>3 meilleurs pronostiqueurs</strong> du classement remportent des récompenses en espèces.
+        </p>
+      </div>
+
+      {/* Podium visuel — ordre : 2e (G) · 1er (centre, plus haut) · 3e (D) */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:18, alignItems:'end', marginBottom:24, maxWidth:760, marginInline:'auto' }}>
+        <PodiumCard {...PODIUM[1]} order={1}/>
+        <PodiumCard {...PODIUM[0]} order={0}/>
+        <PodiumCard {...PODIUM[2]} order={2}/>
+      </div>
+
+      {/* Détails attribution */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:18 }}>
+        <div className="card" style={{ padding:'22px 24px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+            <span style={{ fontSize:20 }}>📅</span>
+            <h3 className="display" style={{ fontSize:18, margin:0 }}>Quand ?</h3>
+          </div>
+          <p style={{ fontSize:13, color:'var(--muted)', fontWeight:600, lineHeight:1.6, margin:0 }}>
+            Le classement final est figé après la <strong style={{ color:'var(--ink)' }}>finale du 19 juillet 2026</strong>. Les gagnants sont contactés par e-mail dans les 7 jours suivants pour organiser le versement.
+          </p>
+        </div>
+
+        <div className="card" style={{ padding:'22px 24px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+            <span style={{ fontSize:20 }}>✅</span>
+            <h3 className="display" style={{ fontSize:18, margin:0 }}>Comment ?</h3>
+          </div>
+          <p style={{ fontSize:13, color:'var(--muted)', fontWeight:600, lineHeight:1.6, margin:0 }}>
+            Récompenses versées par <strong style={{ color:'var(--ink)' }}>virement bancaire</strong> ou PayPal au choix. Aucun frais à ta charge.
+          </p>
+        </div>
+
+        <div className="card" style={{ padding:'22px 24px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+            <span style={{ fontSize:20 }}>⚖️</span>
+            <h3 className="display" style={{ fontSize:18, margin:0 }}>Égalité</h3>
+          </div>
+          <p style={{ fontSize:13, color:'var(--muted)', fontWeight:600, lineHeight:1.6, margin:0 }}>
+            En cas d&apos;égalité de points, c&apos;est le <strong style={{ color:'var(--ink)' }}>nombre de scores exacts</strong> qui départage. Puis le nombre total de pronostics joués.
+          </p>
+        </div>
+
+        <div className="card" style={{ padding:'22px 24px' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:12 }}>
+            <span style={{ fontSize:20 }}>🎁</span>
+            <h3 className="display" style={{ fontSize:18, margin:0 }}>Gratuit</h3>
+          </div>
+          <p style={{ fontSize:13, color:'var(--muted)', fontWeight:600, lineHeight:1.6, margin:0 }}>
+            Le jeu est <strong style={{ color:'var(--ink)' }}>100% gratuit</strong>. Aucun achat, aucune inscription payante. Il suffit d&apos;être connecté pour participer.
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PodiumCard({ rank, amount, label, medal, color, height, order }: {
+  rank: number; amount: number; label: string; medal: string; color: string; height: number; order: number
+}) {
+  return (
+    <div style={{
+      display:'flex', flexDirection:'column', alignItems:'center', gap:0,
+      animation: `wc26-slide-in 0.5s ${order * 0.1}s ease-out both`,
+    }}>
+      {/* Bloc médaille */}
+      <div style={{ fontSize:56, marginBottom:8 }}>{medal}</div>
+      <div className="display" style={{ fontSize:14, color:'var(--muted)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:6 }}>
+        {label}
+      </div>
+      {/* Bloc montant */}
+      <div className="display" style={{
+        fontSize:42, lineHeight:1, marginBottom:14,
+        color: rank === 1 ? PALETTE.red : 'var(--ink)',
+      }}>
+        {amount}<span style={{ fontSize:22, marginLeft:2 }}>€</span>
+      </div>
+      {/* Marche du podium */}
+      <div style={{
+        width:'100%', height,
+        background: color, border:'2px solid var(--ink)',
+        borderBottom:'none', borderTopLeftRadius:14, borderTopRightRadius:14,
+        display:'flex', alignItems:'center', justifyContent:'center',
+        position:'relative',
+      }}>
+        <span className="display" style={{
+          fontSize: rank === 1 ? 96 : rank === 2 ? 80 : 64,
+          color: rank === 1 ? 'var(--ink)' : 'var(--ink)',
+          opacity: 0.95, lineHeight:1,
+        }}>
+          {rank}
+        </span>
+      </div>
+    </div>
   )
 }
 
@@ -826,10 +1202,12 @@ function BigStat({ label, value, color }: { label: string; value: string; color:
 // ─────────────────────────────────────────────────────────────
 import { MATCH_PROBS, H2H } from './data'
 
+const DEFAULT_TEAM_STATS = { possession:50, shots:11.5, sot:3.8, fouls:12, offsides:1.8, corners:4.4, freekicks:12.5, passes:470, succPasses:390, crosses:9, intercepts:11, tackles:13, saves:3.2, xg:1.3, xga:1.3 }
+
 function MatchPreviewBlock({ matchId, home, away }: { matchId: string; home: any; away: any }) {
   const probs = MATCH_PROBS[matchId] || { home:33, draw:33, away:34, predictedScore:'1-1', expectedGoals:2.5, bothScore:55, over25:55 }
-  const sL = TEAM_STATS[home.code]
-  const sR = TEAM_STATS[away.code]
+  const sL = TEAM_STATS[home.code] || DEFAULT_TEAM_STATS
+  const sR = TEAM_STATS[away.code] || DEFAULT_TEAM_STATS
   const h2h = H2H[matchId] || []
 
   return (

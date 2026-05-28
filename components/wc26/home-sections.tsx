@@ -141,6 +141,7 @@ export function NewsSection() {
           </div>
         </div>
       ) : (
+        <>
         <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:16 }}>
           {/* Article principal */}
           <a
@@ -190,6 +191,39 @@ export function NewsSection() {
             ))}
           </div>
         </div>
+
+        {/* Rangée supplémentaire : plus d'articles en grille 4 colonnes */}
+        {rest.length > 5 && (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:16, marginTop:16 }}>
+            {rest.slice(5, 13).map((a) => (
+              <a
+                key={a.id}
+                href={a.link || undefined}
+                target={a.link ? '_blank' : undefined}
+                rel="noopener noreferrer"
+                className="card"
+                style={{
+                  display:'flex', flexDirection:'column', overflow:'hidden',
+                  textDecoration:'none', color:'var(--ink)',
+                  transition:'transform .15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.transform='translateY(-3px)')}
+                onMouseLeave={e => (e.currentTarget.style.transform='translateY(0)')}>
+                <div style={{ borderBottom:'1.5px solid var(--ink)', overflow:'hidden' }}>
+                  <NewsImg src={a.image} color={a.color} h={160}/>
+                </div>
+                <div style={{ padding:'14px 16px', display:'flex', flexDirection:'column', justifyContent:'space-between', flex:1 }}>
+                  <div>
+                    <span className="chip" style={{ background: a.color, color:'#FFFFFF', fontSize:9, padding:'2px 8px' }}>{a.tag}</span>
+                    <h4 style={{ fontSize:14, fontWeight:800, lineHeight:1.25, margin:'10px 0 0', textWrap:'pretty' }}>{a.title}</h4>
+                  </div>
+                  <div style={{ fontSize:10, fontWeight:600, color:'var(--muted)', marginTop:10 }}>{a.time}</div>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+        </>
       )}
     </section>
   )

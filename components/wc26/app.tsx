@@ -9,8 +9,9 @@ import dynamic from 'next/dynamic'
 import type { User } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/client'
 import type { Profile } from '@/lib/db-types'
-import { LogoMark, Marquee, PALETTE } from './ui-primitives'
-import { HeroFeatured, UpcomingStrip, AnalysesGrid } from './main-views'
+import { LogoMark, PALETTE } from './ui-primitives'
+import { MarqueeMatches } from './marquee-matches'
+import { HeroFeatured, UpcomingStrip } from './main-views'
 import { FavoritesSection, NewsSection } from './home-sections'
 import { AuthView } from './auth-view'
 
@@ -78,24 +79,18 @@ export default function App() {
   return (
     <div style={{ minHeight:'100vh', background:'var(--paper)' }}>
       <TopBar view={view} setView={setView} user={user} profile={profile} onSignOut={signOut}/>
-      <Marquee
-        color={PALETTE.blue}
-        items={[
-          'Coupe du monde 2026 — 16 villes hôtes',
-          'BRA vs FRA · 19 juin · Dallas',
-          'POR vs ARG · 18 juin · Los Angeles',
-          '14 820 pronostics communautaires cette semaine',
-          'Nouveau : marchés "premier buteur" disponibles',
-          '48 nations · 104 matchs · 1 trophée',
-        ]}/>
+      <MarqueeMatches onOpenMatch={openMatch}/>
 
       {view==='home' && (
         <>
-          <HeroFeatured onOpenMatch={openMatch}/>
+          <HeroFeatured
+            onOpenMatch={openMatch}
+            onOpenTeam={openTeam}
+            onOpenBetting={() => { setView('betting'); window.scrollTo(0,0) }}
+          />
           <UpcomingStrip onOpenMatch={openMatch} onOpenCalendar={() => { setView('calendar'); window.scrollTo(0,0) }}/>
           <FavoritesSection onOpenTeam={openTeam}/>
           <NewsSection/>
-          <AnalysesGrid/>
           <CommunityCallout onJoin={() => setView(user ? 'predictions' : 'auth')}/>
 
         </>

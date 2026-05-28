@@ -31,18 +31,19 @@ export type Match = {
 }
 
 const BASE_TEAMS: Team[] = [
-  { code:'FRA', name:'France',      color:'#0033FF', flag:['#0033FF','#FFFFFF','#E10600'], group:'I', rank: 2, form:['W','W','D','W','W'] },
-  { code:'BRA', name:'Brazil',      color:'#FFD400', flag:['#009C3B','#FFD400','#002776'], group:'C', rank: 5, form:['W','D','W','W','L'] },
-  { code:'ARG', name:'Argentina',   color:'#75AADB', flag:['#75AADB','#FFFFFF','#75AADB'], group:'J', rank: 1, form:['W','W','W','D','W'] },
-  { code:'POR', name:'Portugal',    color:'#006B3F', flag:['#006B3F','#DA291C'], group:'K', rank: 6, form:['W','L','W','W','D'] },
-  { code:'ESP', name:'Spain',       color:'#C60B1E', flag:['#C60B1E','#FFC400','#C60B1E'], group:'H', rank: 3, form:['W','W','W','W','W'] },
+  // Rangs FIFA — classement officiel du 1er avril 2026
+  { code:'FRA', name:'France',      color:'#0033FF', flag:['#0033FF','#FFFFFF','#E10600'], group:'I', rank: 1, form:['W','W','D','W','W'] },
+  { code:'BRA', name:'Brazil',      color:'#FFD400', flag:['#009C3B','#FFD400','#002776'], group:'C', rank: 6, form:['W','D','W','W','L'] },
+  { code:'ARG', name:'Argentina',   color:'#75AADB', flag:['#75AADB','#FFFFFF','#75AADB'], group:'J', rank: 3, form:['W','W','W','D','W'] },
+  { code:'POR', name:'Portugal',    color:'#006B3F', flag:['#006B3F','#DA291C'], group:'K', rank: 5, form:['W','L','W','W','D'] },
+  { code:'ESP', name:'Spain',       color:'#C60B1E', flag:['#C60B1E','#FFC400','#C60B1E'], group:'H', rank: 2, form:['W','W','W','W','W'] },
   { code:'ENG', name:'England',     color:'#E10600', flag:['#FFFFFF','#E10600'], group:'L', rank: 4, form:['W','D','W','L','W'] },
-  { code:'GER', name:'Germany',     color:'#0A0A0A', flag:['#0A0A0A','#E10600','#FFD400'], group:'E', rank: 8, form:['D','W','L','W','W'] },
+  { code:'GER', name:'Germany',     color:'#0A0A0A', flag:['#0A0A0A','#E10600','#FFD400'], group:'E', rank:10, form:['D','W','L','W','W'] },
   { code:'NED', name:'Netherlands', color:'#FF6E00', flag:['#AE1C28','#FFFFFF','#21468B'], group:'F', rank: 7, form:['W','W','D','W','L'] },
-  { code:'MEX', name:'Mexico',      color:'#006847', flag:['#006847','#FFFFFF','#CE1126'], group:'A', rank:12, form:['W','L','W','D','W'] },
-  { code:'USA', name:'USA',         color:'#0033FF', flag:['#B22234','#FFFFFF','#3C3B6E'], group:'D', rank:14, form:['D','W','W','L','W'] },
-  { code:'CAN', name:'Canada',      color:'#E10600', flag:['#E10600','#FFFFFF','#E10600'], group:'B', rank:17, form:['L','W','D','W','L'] },
-  { code:'JPN', name:'Japan',       color:'#BC002D', flag:['#FFFFFF','#BC002D','#FFFFFF'], group:'F', rank:23, form:['W','W','W','D','W'] },
+  { code:'MEX', name:'Mexico',      color:'#006847', flag:['#006847','#FFFFFF','#CE1126'], group:'A', rank:15, form:['W','L','W','D','W'] },
+  { code:'USA', name:'USA',         color:'#0033FF', flag:['#B22234','#FFFFFF','#3C3B6E'], group:'D', rank:16, form:['D','W','W','L','W'] },
+  { code:'CAN', name:'Canada',      color:'#E10600', flag:['#E10600','#FFFFFF','#E10600'], group:'B', rank:30, form:['L','W','D','W','L'] },
+  { code:'JPN', name:'Japan',       color:'#BC002D', flag:['#FFFFFF','#BC002D','#FFFFFF'], group:'F', rank:18, form:['W','W','W','D','W'] },
 ]
 
 // ── Vrais groupes du tirage au sort FIFA du 5 déc. 2025 ────────────────────
@@ -52,11 +53,11 @@ const TEAMS_EXTRA: Team[] = [
   { code:'RSA', name:'South Africa',    color:'#007A4D', flag:['#007A4D','#FFB612','#000000'], group:'A', rank:57, form:['W','D','L','D','W'] },
   { code:'CZE', name:'Czech Republic',  color:'#D7141A', flag:['#FFFFFF','#D7141A','#11457E'], group:'A', rank:40, form:['D','W','W','L','D'] },
   // ── Groupe B : CAN · SUI · QAT · BIH ──
-  { code:'SUI', name:'Switzerland',     color:'#D52B1E', flag:['#D52B1E','#FFFFFF','#D52B1E'], group:'B', rank:17, form:['W','D','W','L','W'] },
+  { code:'SUI', name:'Switzerland',     color:'#D52B1E', flag:['#D52B1E','#FFFFFF','#D52B1E'], group:'B', rank:19, form:['W','D','W','L','W'] },
   { code:'QAT', name:'Qatar',           color:'#8A1538', flag:['#8A1538','#FFFFFF','#8A1538'], group:'B', rank:58, form:['L','L','D','L','W'] },
   { code:'BIH', name:'Bosnia-Herzeg.',  color:'#002395', flag:['#002395','#F0CF00','#FFFFFF'], group:'B', rank:62, form:['D','W','L','D','W'] },
   // ── Groupe C : BRA · MAR · HAI · SCO ──
-  { code:'MAR', name:'Morocco',         color:'#C1272D', flag:['#C1272D','#006233','#C1272D'], group:'C', rank:13, form:['W','W','W','D','W'] },
+  { code:'MAR', name:'Morocco',         color:'#C1272D', flag:['#C1272D','#006233','#C1272D'], group:'C', rank: 8, form:['W','W','W','D','W'] },
   { code:'HAI', name:'Haiti',           color:'#00209F', flag:['#00209F','#D21034','#00209F'], group:'C', rank:91, form:['L','D','L','W','L'] },
   { code:'SCO', name:'Scotland',        color:'#0065BD', flag:['#0065BD','#FFFFFF','#0065BD'], group:'C', rank:35, form:['W','D','L','W','D'] },
   // ── Groupe D : USA · TUR · PAR · AUS ──
@@ -71,28 +72,28 @@ const TEAMS_EXTRA: Team[] = [
   { code:'SUE', name:'Sweden',          color:'#006AA7', flag:['#006AA7','#FECC00','#006AA7'], group:'F', rank:27, form:['W','D','W','D','W'] },
   { code:'TUN', name:'Tunisia',         color:'#E70013', flag:['#E70013','#FFFFFF','#E70013'], group:'F', rank:42, form:['L','D','W','L','D'] },
   // ── Groupe G : BEL · IRN · EGY · NZL ──
-  { code:'BEL', name:'Belgium',         color:'#FFD90C', flag:['#000000','#FAE042','#ED2939'], group:'G', rank:10, form:['W','D','W','W','D'] },
+  { code:'BEL', name:'Belgium',         color:'#FFD90C', flag:['#000000','#FAE042','#ED2939'], group:'G', rank: 9, form:['W','D','W','W','D'] },
   { code:'IRN', name:'Iran',            color:'#239F40', flag:['#239F40','#FFFFFF','#DA0000'], group:'G', rank:20, form:['W','L','W','D','W'] },
   { code:'EGY', name:'Egypt',           color:'#CE1126', flag:['#CE1126','#FFFFFF','#000000'], group:'G', rank:34, form:['D','L','W','L','D'] },
   { code:'NZL', name:'New Zealand',     color:'#000000', flag:['#FFFFFF','#000000','#FFFFFF'], group:'G', rank:101, form:['L','W','L','D','L'] },
   // ── Groupe H : ESP · URU · KSA · CPV ──
-  { code:'URU', name:'Uruguay',         color:'#0038A8', flag:['#FFFFFF','#0038A8','#FFFFFF'], group:'H', rank:15, form:['W','D','W','W','L'] },
+  { code:'URU', name:'Uruguay',         color:'#0038A8', flag:['#FFFFFF','#0038A8','#FFFFFF'], group:'H', rank:17, form:['W','D','W','W','L'] },
   { code:'KSA', name:'Saudi Arabia',    color:'#006C35', flag:['#006C35','#FFFFFF','#006C35'], group:'H', rank:56, form:['L','D','W','L','L'] },
   { code:'CPV', name:'Cape Verde',      color:'#003893', flag:['#003893','#CF2027','#FECC00'], group:'H', rank:73, form:['W','D','W','L','W'] },
   // ── Groupe I : FRA · SEN · IRQ · NOR ──
-  { code:'SEN', name:'Senegal',         color:'#00853F', flag:['#00853F','#FDEF42','#E31B23'], group:'I', rank:16, form:['W','W','D','W','L'] },
+  { code:'SEN', name:'Senegal',         color:'#00853F', flag:['#00853F','#FDEF42','#E31B23'], group:'I', rank:14, form:['W','W','D','W','L'] },
   { code:'IRQ', name:'Iraq',            color:'#CE1126', flag:['#CE1126','#FFFFFF','#007A3D'], group:'I', rank:63, form:['W','D','L','W','D'] },
-  { code:'NOR', name:'Norway',          color:'#EF2B2D', flag:['#EF2B2D','#FFFFFF','#002868'], group:'I', rank:18, form:['W','W','W','D','W'] },
+  { code:'NOR', name:'Norway',          color:'#EF2B2D', flag:['#EF2B2D','#FFFFFF','#002868'], group:'I', rank:33, form:['W','W','W','D','W'] },
   // ── Groupe J : ARG · ALG · AUT · JOR ──
   { code:'ALG', name:'Algeria',         color:'#006233', flag:['#006233','#FFFFFF','#D21034'], group:'J', rank:36, form:['W','D','L','W','D'] },
-  { code:'AUT', name:'Austria',         color:'#ED2939', flag:['#ED2939','#FFFFFF','#ED2939'], group:'J', rank:26, form:['D','W','D','W','L'] },
+  { code:'AUT', name:'Austria',         color:'#ED2939', flag:['#ED2939','#FFFFFF','#ED2939'], group:'J', rank:23, form:['D','W','D','W','L'] },
   { code:'JOR', name:'Jordan',          color:'#007A3D', flag:['#007A3D','#FFFFFF','#CE1126'], group:'J', rank:74, form:['W','L','D','W','D'] },
   // ── Groupe K : POR · COL · UZB · COD ──
-  { code:'COL', name:'Colombia',        color:'#FCD116', flag:['#FCD116','#003893','#CE1126'], group:'K', rank:11, form:['W','W','D','W','W'] },
+  { code:'COL', name:'Colombia',        color:'#FCD116', flag:['#FCD116','#003893','#CE1126'], group:'K', rank:13, form:['W','W','D','W','W'] },
   { code:'UZB', name:'Uzbekistan',      color:'#1EB53A', flag:['#1EB53A','#FFFFFF','#009FCA'], group:'K', rank:68, form:['W','W','D','L','W'] },
   { code:'COD', name:'Congo DR',        color:'#007FFF', flag:['#007FFF','#CE1126','#F7D900'], group:'K', rank:76, form:['D','W','L','D','W'] },
   // ── Groupe L : ENG · CRO · PAN · GHA ──
-  { code:'CRO', name:'Croatia',         color:'#171796', flag:['#FF0000','#FFFFFF','#171796'], group:'L', rank: 9, form:['D','W','W','L','D'] },
+  { code:'CRO', name:'Croatia',         color:'#171796', flag:['#FF0000','#FFFFFF','#171796'], group:'L', rank:11, form:['D','W','W','L','D'] },
   { code:'PAN', name:'Panama',          color:'#005AA7', flag:['#005AA7','#FFFFFF','#D21034'], group:'L', rank:38, form:['D','L','W','D','L'] },
   { code:'GHA', name:'Ghana',           color:'#FCD116', flag:['#CE1126','#FCD116','#006B3F'], group:'L', rank:72, form:['L','D','L','W','D'] },
 ]

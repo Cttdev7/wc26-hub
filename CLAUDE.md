@@ -57,6 +57,9 @@ SUPABASE_SERVICE_ROLE_KEY=
 API_FOOTBALL_KEY=c796bcca11980bc5fd10a39e9ee1e683
 CRON_SECRET=wc26hubsecret2026
 
+# Agent IA — clé gratuite sur https://aistudio.google.com (sans CB)
+GOOGLE_GENERATIVE_AI_API_KEY=
+
 AFFILIATE_BETCLIC=https://www.betclic.fr/?aff=TON_ID
 AFFILIATE_WINAMAX=https://www.winamax.fr/parrain?code=CTTPLL
 AFFILIATE_UNIBET=https://www.unibet.fr/inscription/?campaign=120526&parrain=0E7660EB5C7F9211
@@ -88,6 +91,7 @@ app/
     leaderboard/route.ts        # Classement Supabase
     cron/score/route.ts         # Scoring auto (cron Vercel)
     matches/sync/route.ts       # Sync API-Football → Supabase
+    agent/analyze/route.ts      # Agent IA — parse match + contexte data + stream Gemini
   affiliate/[partner]/route.ts  # Redirection affilié (302, URL masquée)
   auth/callback/route.ts        # OAuth Supabase
 
@@ -156,8 +160,13 @@ supabase/
 - Scoring déclenché par cron Vercel 23h UTC via `score_prediction()`
 
 ### Agent IA
-- Vue `agent` : placeholder complet (UI chat, suggestions, input grisé)
-- À connecter par l'utilisateur ultérieurement
+- Vue `agent` : chat fonctionnel — l'utilisateur tape un match, l'agent analyse
+- Route `/api/agent/analyze` (POST `{message}`) : parse les 2 équipes, fetch en parallèle `/api/odds` + `/api/standings`, injecte dans le prompt système, stream la réponse Gemini 2.5 Flash
+- Modèle : Google Gemini 2.5 Flash (gratuit, 1500 req/jour) via `@ai-sdk/google` + Vercel AI SDK v6
+- Parser de match : `lib/agent/match-parser.ts` (~50 alias FR/EN pour les 48 équipes)
+- Sortie structurée : sections markdown (### Affiche / Forme / Tactique / Cotes / Pronostic) + bloc \`\`\`probabilities PROBA_DOM/NUL/EXT extrait par le frontend pour la carte visuelle
+- Si pas de clé `GOOGLE_GENERATIVE_AI_API_KEY` : message d'erreur explicite vers aistudio.google.com
+- Si message hors-scope (pas 2 équipes détectées) : fallback poli "Je suis spécialisé dans l'analyse des matchs WC26"
 
 ## Système de points
 

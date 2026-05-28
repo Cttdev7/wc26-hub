@@ -11,6 +11,8 @@ const TEAM_IDS: Record<string, number> = {
   CRO: 3,    PAN: 11,   GHA: 1504, ALG: 1532, AUT: 775,
   JOR: 1548, CIV: 1501, CUW: 5530, HAI: 2386, SCO: 1108,
   SEN: 13,   IRN: 22,
+  // Ajoutés mai 2026 — IDs vérifiés via search teams API (squads pas encore peuplés côté API)
+  USA: 2384, CAN: 5529, NZL: 4673, ECU: 2382, COD: 1508, CPV: 1533,
 }
 
 const POS_MAP: Record<string, 'GK' | 'DEF' | 'MID' | 'FWD'> = {
